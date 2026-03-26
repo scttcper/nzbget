@@ -39,7 +39,8 @@
     "@ctrl/shared-usenet": "0.0.1",
     "ofetch": "^1.5.1",
     "type-fest": "^5.5.0",
-    "ufo": "^1.6.3"
+    "ufo": "^1.6.3",
+    "uint8array-extras": "^1.5.0"
   },
   "devDependencies": {
     "@ctrl/oxlint-config": "1.4.2",

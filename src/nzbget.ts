@@ -16,6 +16,7 @@ import {
 import { ofetch } from 'ofetch';
 import type { Jsonify } from 'type-fest';
 import { joinURL } from 'ufo';
+import { stringToBase64, stringToUint8Array, uint8ArrayToBase64 } from 'uint8array-extras';
 
 import {
   configItemsToMap,
@@ -52,7 +53,7 @@ const defaults: UsenetClientConfig = {
 };
 
 function encodeBasicAuth(username: string, password: string): string {
-  return Buffer.from(`${username}:${password}`, 'utf8').toString('base64');
+  return stringToBase64(`${username}:${password}`);
 }
 
 function normalizeIds(ids: Array<number | string> | number | string): number[] {
@@ -61,7 +62,7 @@ function normalizeIds(ids: Array<number | string> | number | string): number[] {
 }
 
 function toBase64(input: string | Uint8Array): string {
-  return Buffer.from(typeof input === 'string' ? input : input).toString('base64');
+  return uint8ArrayToBase64(typeof input === 'string' ? stringToUint8Array(input) : input);
 }
 
 async function sleep(milliseconds: number): Promise<void> {
@@ -376,11 +377,18 @@ export class Nzbget implements UsenetClient {
 
   private async rpc<T>(method: string, params: unknown[] = []): Promise<T> {
     const url = joinURL(this.config.baseUrl, this.config.path ?? '/jsonrpc');
+    const username = this.config.username ?? '';
+    const password = this.config.password ?? '';
+    const headers =
+      username || password
+        ? {
+            Authorization: `Basic ${encodeBasicAuth(username, password)}`,
+          }
+        : undefined;
+
     const response = await ofetch<JsonRpcResponse<T>>(url, {
       method: 'POST',
-      headers: {
-        Authorization: `Basic ${encodeBasicAuth(this.config.username ?? '', this.config.password ?? '')}`,
-      },
+      headers,
       body: {
         jsonrpc: '2.0',
         method,
@@ -398,5 +406,3 @@ export class Nzbget implements UsenetClient {
     return response.result;
   }
 }
-
-export { Nzbget as NZBGet };
