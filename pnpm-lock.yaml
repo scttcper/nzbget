@@ -9,7 +9,7 @@ importers:
   .:
     dependencies:
       '@ctrl/shared-usenet':
-        specifier: 0.0.1
+        specifier: ^0.0.1
         version: 0.0.1(ofetch@1.5.1)
       ofetch:
         specifier: ^1.5.1
