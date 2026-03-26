@@ -91,49 +91,60 @@ export class Nzbget implements UsenetClient {
     return JSON.parse(JSON.stringify(this.state));
   }
 
+  /** Calls {@link https://nzbget-ng.github.io/api/version | version}. */
   async getVersion(): Promise<string> {
     const version = await this.rpc<string>('version');
     this.state.version = { version };
     return version;
   }
 
+  /** Calls {@link https://nzbget-ng.github.io/api/status | status}. */
   async status(): Promise<NzbGetStatus> {
     return this.rpc<NzbGetStatus>('status');
   }
 
+  /** Calls {@link https://nzbget-ng.github.io/api/listgroups | listgroups}. */
   async listGroups(): Promise<NzbGetQueueItem[]> {
     return this.rpc<NzbGetQueueItem[]>('listgroups', [0]);
   }
 
+  /** Calls {@link https://nzbget-ng.github.io/api/history | history}. */
   async history(hidden = false): Promise<NzbGetHistoryItem[]> {
     return this.rpc<NzbGetHistoryItem[]>('history', [hidden]);
   }
 
+  /** Calls {@link https://nzbget-ng.github.io/api/config | config}. */
   async getConfig(): Promise<Record<string, string>> {
     const items = await this.rpc<NzbGetConfigItem[]>('config');
     return configItemsToMap(items);
   }
 
+  /** Calls {@link https://nzbget-ng.github.io/api/configtemplates | configtemplates}. */
   async configTemplates(loadFromDisk = false): Promise<NzbGetConfigTemplate[]> {
     return this.rpc<NzbGetConfigTemplate[]>('configtemplates', [loadFromDisk]);
   }
 
+  /** Calls {@link https://nzbget-ng.github.io/api/listfiles | listfiles}. */
   async listFiles(id: number | string): Promise<NzbGetFile[]> {
-    return this.rpc<NzbGetFile[]>('listfiles', [Number.parseInt(`${id}`, 10)]);
+    return this.rpc<NzbGetFile[]>('listfiles', [0, 0, Number.parseInt(`${id}`, 10)]);
   }
 
+  /** Calls {@link https://nzbget-ng.github.io/api/pausedownload | pausedownload}. */
   async pauseDownload(): Promise<boolean> {
     return this.rpc<boolean>('pausedownload');
   }
 
+  /** Calls {@link https://nzbget-ng.github.io/api/resumedownload | resumedownload}. */
   async resumeDownload(): Promise<boolean> {
     return this.rpc<boolean>('resumedownload');
   }
 
+  /** Calls {@link https://nzbget-ng.github.io/api/rate | rate}. */
   async setRate(limitBytesPerSecond: number): Promise<boolean> {
     return this.rpc<boolean>('rate', [limitBytesPerSecond]);
   }
 
+  /** Calls {@link https://nzbget-ng.github.io/api/append | append}. */
   async append(
     name: string,
     contentOrUrl: string,
@@ -153,6 +164,7 @@ export class Nzbget implements UsenetClient {
     ]);
   }
 
+  /** Calls {@link https://nzbget-ng.github.io/api/editqueue | editqueue}. */
   async editQueue(
     command: string,
     parameter: string | number,

@@ -14,6 +14,12 @@ const __dirname = new URL('.', import.meta.url).pathname;
 const fixturePath = path.join(__dirname, 'fixtures', 'sample.nzb');
 
 describe.skipIf(!integrationEnabled)('nzbget integration', () => {
+  it('lists files without raising an rpc parameter error', async () => {
+    const client = new Nzbget({ baseUrl, username, password });
+
+    await expect(client.listFiles(0)).resolves.toEqual(expect.any(Array));
+  });
+
   it('adds a file and reads queue data', async () => {
     const client = new Nzbget({ baseUrl, username, password });
     const id = await client.addNzbFile(readFileSync(fixturePath), {

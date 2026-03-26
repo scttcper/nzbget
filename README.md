@@ -122,23 +122,23 @@ NZBGet-specific methods are still available when you need the raw JSON-RPC surfa
 
 Connection and discovery:
 
-- `getVersion()`
-- `status()`
-- `listGroups()`
-- `history(hidden?)`
-- `getConfig()`
-- `configTemplates(loadFromDisk?)`
-- `listFiles(id)`
-- `getCategories()`
-- `getScripts()`
+- `getVersion()` - wraps [`version`](https://nzbget-ng.github.io/api/version)
+- `status()` - wraps [`status`](https://nzbget-ng.github.io/api/status)
+- `listGroups()` - wraps [`listgroups`](https://nzbget-ng.github.io/api/listgroups)
+- `history(hidden?)` - wraps [`history`](https://nzbget-ng.github.io/api/history)
+- `getConfig()` - wraps [`config`](https://nzbget-ng.github.io/api/config)
+- `configTemplates(loadFromDisk?)` - wraps [`configtemplates`](https://nzbget-ng.github.io/api/configtemplates)
+- `listFiles(id)` - wraps [`listfiles`](https://nzbget-ng.github.io/api/listfiles)
+- `getCategories()` - derived from [`config`](https://nzbget-ng.github.io/api/config)
+- `getScripts()` - derived from [`configtemplates`](https://nzbget-ng.github.io/api/configtemplates)
 
 Queue and rate control:
 
-- `pauseDownload()`
-- `resumeDownload()`
-- `setRate(limitBytesPerSecond)`
-- `append(name, contentOrUrl, options?)`
-- `editQueue(command, parameter, ids)`
+- `pauseDownload()` - wraps [`pausedownload`](https://nzbget-ng.github.io/api/pausedownload)
+- `resumeDownload()` - wraps [`resumedownload`](https://nzbget-ng.github.io/api/resumedownload)
+- `setRate(limitBytesPerSecond)` - wraps [`rate`](https://nzbget-ng.github.io/api/rate)
+- `append(name, contentOrUrl, options?)` - wraps [`append`](https://nzbget-ng.github.io/api/append)
+- `editQueue(command, parameter, ids)` - wraps [`editqueue`](https://nzbget-ng.github.io/api/editqueue)
 
 ### State Export
 
