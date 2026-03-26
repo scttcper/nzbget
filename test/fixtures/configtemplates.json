@@ -1,0 +1,4 @@
+[
+  { "Name": "Notify.py", "DisplayName": "Notify", "PostScript": true },
+  { "Name": "QueueDir", "DisplayName": "QueueDir", "PostScript": false }
+]

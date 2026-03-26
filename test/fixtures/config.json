@@ -1,0 +1,9 @@
+[
+  { "Name": "MainDir", "Value": "/downloads" },
+  { "Name": "DestDir", "Value": "${MainDir}/complete" },
+  { "Name": "AppendCategoryDir", "Value": "yes" },
+  { "Name": "Category1.Name", "Value": "movies" },
+  { "Name": "Category1.DestDir", "Value": "" },
+  { "Name": "Category2.Name", "Value": "tv" },
+  { "Name": "Category2.DestDir", "Value": "/downloads/tv" }
+]

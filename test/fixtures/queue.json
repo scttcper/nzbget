@@ -1,0 +1,20 @@
+[
+  {
+    "NZBID": 23,
+    "FirstID": 1,
+    "LastID": 1,
+    "NZBName": "movie.release",
+    "Category": "movies",
+    "FileSizeLo": 2048,
+    "FileSizeHi": 0,
+    "RemainingSizeLo": 1024,
+    "RemainingSizeHi": 0,
+    "PausedSizeLo": 0,
+    "PausedSizeHi": 0,
+    "MinPriority": 50,
+    "MaxPriority": 50,
+    "ActiveDownloads": 1,
+    "Status": "DOWNLOADING",
+    "Parameters": []
+  }
+]

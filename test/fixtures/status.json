@@ -1,0 +1,10 @@
+{
+  "RemainingSizeLo": 512,
+  "RemainingSizeHi": 0,
+  "DownloadedSizeLo": 4096,
+  "DownloadedSizeHi": 0,
+  "DownloadRate": 1024,
+  "AverageDownloadRate": 768,
+  "DownloadLimit": 2048,
+  "DownloadPaused": false
+}

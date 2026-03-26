@@ -1,0 +1,35 @@
+[
+  {
+    "ID": 41,
+    "Name": "completed.release",
+    "Category": "movies",
+    "FileSizeLo": 2048,
+    "FileSizeHi": 0,
+    "HistoryTime": 1711152000,
+    "ParStatus": "SUCCESS",
+    "UnpackStatus": "SUCCESS",
+    "MoveStatus": "SUCCESS",
+    "ScriptStatus": "NONE",
+    "DeleteStatus": "NONE",
+    "MarkStatus": "GOOD",
+    "FinalDir": "/downloads/complete/completed.release",
+    "DestDir": "/downloads/complete",
+    "Parameters": []
+  },
+  {
+    "ID": 42,
+    "Name": "failed.release",
+    "Category": "movies",
+    "FileSizeLo": 2048,
+    "FileSizeHi": 0,
+    "ParStatus": "FAILURE",
+    "UnpackStatus": "NONE",
+    "MoveStatus": "NONE",
+    "ScriptStatus": "NONE",
+    "DeleteStatus": "BAD",
+    "MarkStatus": "BAD",
+    "FinalDir": "",
+    "DestDir": "/downloads/intermediate",
+    "Parameters": []
+  }
+]

@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: wyvox/action-setup-pnpm@v3
+        with:
+          node-version: 24
+
+      - name: start fixture server
+        run: |
+          python3 -m http.server 8768 --directory test >/tmp/nzbget-fixture.log 2>&1 &
+
+      - name: start nzbget
+        run: |
+          docker run -d \
+            --name nzbget \
+            -p 6789:6789 \
+            -e NZBGET_USER=nzbget \
+            -e NZBGET_PASS=tegbzn6789 \
+            lscr.io/linuxserver/nzbget:latest
+
+      - name: wait for nzbget
+        run: |
+          for i in {1..30}; do
+            if curl -fsS \
+              -u 'nzbget:tegbzn6789' \
+              -H 'Content-Type: application/json' \
+              -d '{"version":"1.1","method":"version","params":[],"id":1}' \
+              http://127.0.0.1:6789/jsonrpc >/dev/null; then
+              break
+            fi
+            sleep 2
+          done
+
+      - name: lint
+        run: pnpm run lint
+
+      - name: test
+        env:
+          TEST_NZBGET_URL: http://127.0.0.1:6789/
+          TEST_NZBGET_USERNAME: nzbget
+          TEST_NZBGET_PASSWORD: tegbzn6789
+          TEST_NZBGET_NZB_URL: http://127.0.0.1:8768/fixtures/sample.nzb
+        run: pnpm run test
