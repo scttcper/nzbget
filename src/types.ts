@@ -139,6 +139,166 @@ export interface NzbGetConfigItem {
   Value: string;
 }
 
+type NzbGetServerSettingKey =
+  | `Server${number}.Active`
+  | `Server${number}.Name`
+  | `Server${number}.Level`
+  | `Server${number}.Optional`
+  | `Server${number}.Group`
+  | `Server${number}.Host`
+  | `Server${number}.Encryption`
+  | `Server${number}.Port`
+  | `Server${number}.Username`
+  | `Server${number}.Password`
+  | `Server${number}.JoinGroup`
+  | `Server${number}.Cipher`
+  | `Server${number}.Connections`
+  | `Server${number}.Retention`
+  | `Server${number}.CertVerification`
+  | `Server${number}.IpVersion`
+  | `Server${number}.Notes`;
+
+type NzbGetCategorySettingKey =
+  | `Category${number}.Name`
+  | `Category${number}.DestDir`
+  | `Category${number}.Unpack`
+  | `Category${number}.Extensions`
+  | `Category${number}.Aliases`;
+
+type NzbGetSettingsKnownKeys = {
+  ConfigFile: string;
+  AppBin: string;
+  AppDir: string;
+  Version: string;
+  MainDir: string;
+  WebDir: string;
+  ConfigTemplate: string;
+  TempDir: string;
+  DestDir: string;
+  InterDir: string;
+  QueueDir: string;
+  NzbDir: string;
+  LockFile: string;
+  LogFile: string;
+  ScriptDir: string;
+  RequiredDir: string;
+  WriteLog: string;
+  RotateLog: string;
+  AppendCategoryDir: string;
+  OutputMode: string;
+  DupeCheck: string;
+  DownloadRate: string;
+  ControlIP: string;
+  ControlUsername: string;
+  ControlPassword: string;
+  RestrictedUsername: string;
+  RestrictedPassword: string;
+  AddUsername: string;
+  AddPassword: string;
+  ControlPort: string;
+  FormAuth: string;
+  SecureControl: string;
+  SecurePort: string;
+  SecureCert: string;
+  SecureKey: string;
+  CertStore: string;
+  CertCheck: string;
+  AuthorizedIP: string;
+  ArticleTimeout: string;
+  ArticleReadChunkSize: string;
+  UrlTimeout: string;
+  RemoteTimeout: string;
+  FlushQueue: string;
+  SystemHealthCheck: string;
+  NzbLog: string;
+  RawArticle: string;
+  SkipWrite: string;
+  ArticleRetries: string;
+  ArticleInterval: string;
+  UrlRetries: string;
+  UrlInterval: string;
+  ContinuePartial: string;
+  UrlConnections: string;
+  LogBuffer: string;
+  InfoTarget: string;
+  WarningTarget: string;
+  ErrorTarget: string;
+  DebugTarget: string;
+  DetailTarget: string;
+  ParCheck: string;
+  ParRepair: string;
+  ParScan: string;
+  ParQuick: string;
+  PostStrategy: string;
+  FileNaming: string;
+  RenameAfterUnpack: string;
+  RenameIgnoreExt: string;
+  ParRename: string;
+  ParBuffer: string;
+  ParThreads: string;
+  RarRename: string;
+  HealthCheck: string;
+  DirectRename: string;
+  HardLinking: string;
+  HardLinkingIgnoreExt: string;
+  ScriptOrder: string;
+  Extensions: string;
+  DaemonUsername: string;
+  UMask: string;
+  UpdateInterval: string;
+  CursesNzbName: string;
+  CursesTime: string;
+  CursesGroup: string;
+  CrcCheck: string;
+  DirectWrite: string;
+  WriteBuffer: string;
+  NzbDirInterval: string;
+  NzbDirFileAge: string;
+  DiskSpace: string;
+  CrashTrace: string;
+  CrashDump: string;
+  ParPauseQueue: string;
+  ScriptPauseQueue: string;
+  NzbCleanupDisk: string;
+  ParTimeLimit: string;
+  KeepHistory: string;
+  Unpack: string;
+  DirectUnpack: string;
+  UseTempUnpackDir: string;
+  UnpackCleanupDisk: string;
+  UnrarCmd: string;
+  SevenZipCmd: string;
+  UnpackPassFile: string;
+  UnpackPauseQueue: string;
+  ExtCleanupDisk: string;
+  ParIgnoreExt: string;
+  UnpackIgnoreExt: string;
+  FeedHistory: string;
+  UrlForce: string;
+  TimeCorrection: string;
+  PropagationDelay: string;
+  ArticleCache: string;
+  EventInterval: string;
+  ShellOverride: string;
+  MonthlyQuota: string;
+  QuotaStartDay: string;
+  DailyQuota: string;
+  ReorderFiles: string;
+  UpdateCheck: string;
+};
+
+/**
+ * Settings map returned by {@link https://nzbget-ng.github.io/api/config | config}.
+ *
+ * NZBGet exposes a broad string-to-string config object. This type makes the
+ * common built-in keys explicit while preserving support for custom or
+ * version-specific settings.
+ */
+export type NzbGetSettings = Record<string, string> &
+  NzbGetSettingsKnownKeys &
+  Partial<Record<NzbGetServerSettingKey, string>> &
+  Partial<Record<NzbGetCategorySettingKey, string>>;
+
 /**
  * Template entry returned by
  * {@link https://nzbget-ng.github.io/api/configtemplates | configtemplates}.

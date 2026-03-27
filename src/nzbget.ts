@@ -31,6 +31,7 @@ import type {
   JsonRpcResponse,
   NzbGetAddOptions,
   NzbGetConfigItem,
+  NzbGetSettings,
   NzbGetConfigTemplate,
   NzbGetFile,
   NzbGetHistoryItem,
@@ -115,7 +116,7 @@ export class Nzbget implements UsenetClient {
   }
 
   /** Calls {@link https://nzbget-ng.github.io/api/config | config}. */
-  async getConfig(): Promise<Record<string, string>> {
+  async getConfig(): Promise<NzbGetSettings> {
     const items = await this.rpc<NzbGetConfigItem[]>('config');
     return configItemsToMap(items);
   }

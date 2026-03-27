@@ -11,6 +11,7 @@ import {
 
 import type {
   NzbGetConfigItem,
+  NzbGetSettings,
   NzbGetConfigTemplate,
   NzbGetHistoryItem,
   NzbGetQueueItem,
@@ -235,11 +236,11 @@ export function normalizeNzbgetHistoryItem(item: NzbGetHistoryItem): NormalizedU
   };
 }
 
-export function configItemsToMap(items: NzbGetConfigItem[]): Record<string, string> {
-  return Object.fromEntries(items.map(item => [item.Name, item.Value]));
+export function configItemsToMap(items: NzbGetConfigItem[]): NzbGetSettings {
+  return Object.fromEntries(items.map(item => [item.Name, item.Value])) as NzbGetSettings;
 }
 
-export function deriveCategories(configMap: Record<string, string>): Category[] {
+export function deriveCategories(configMap: NzbGetSettings): Category[] {
   const categories: Category[] = [];
 
   for (let index = 1; index < 100; index++) {

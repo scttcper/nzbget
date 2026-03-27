@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import {
   Nzbget,
@@ -66,9 +66,12 @@ describe('deriveCategories and deriveScripts', () => {
   it('derives categories and scripts from config data', () => {
     const configItems = readFixture<NzbGetConfigItem[]>('config.json');
     const templates = readFixture<NzbGetConfigTemplate[]>('configtemplates.json');
-    const categories = deriveCategories(configItemsToMap(configItems));
+    const config = configItemsToMap(configItems);
+    const categories = deriveCategories(config);
     const scripts = deriveScripts(templates);
 
+    expectTypeOf(config.MainDir).toBeString();
+    expectTypeOf(config['Category1.Name']).toEqualTypeOf<string | undefined>();
     expect(categories[0]?.path).toContain('/downloads/complete/movies');
     expect(scripts[0]?.id).toBe('Notify.py');
   });
