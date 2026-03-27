@@ -102,6 +102,16 @@ export class Nzbget implements UsenetClient {
     return version;
   }
 
+  /** Calls {@link https://nzbget-ng.github.io/api/shutdown | shutdown}. */
+  async shutdown(): Promise<boolean> {
+    return this.rpc<boolean>('shutdown');
+  }
+
+  /** Calls {@link https://nzbget-ng.github.io/api/reload | reload}. */
+  async reload(): Promise<boolean> {
+    return this.rpc<boolean>('reload');
+  }
+
   /** Calls {@link https://nzbget-ng.github.io/api/status | status}. */
   async status(): Promise<NzbGetStatus> {
     return this.rpc<NzbGetStatus>('status');
@@ -143,6 +153,31 @@ export class Nzbget implements UsenetClient {
     return this.rpc<boolean>('resumedownload');
   }
 
+  /** Calls {@link https://nzbget-ng.github.io/api/pausepost | pausepost}. */
+  async pausePost(): Promise<boolean> {
+    return this.rpc<boolean>('pausepost');
+  }
+
+  /** Calls {@link https://nzbget-ng.github.io/api/resumepost | resumepost}. */
+  async resumePost(): Promise<boolean> {
+    return this.rpc<boolean>('resumepost');
+  }
+
+  /** Calls {@link https://nzbget-ng.github.io/api/pausescan | pausescan}. */
+  async pauseScan(): Promise<boolean> {
+    return this.rpc<boolean>('pausescan');
+  }
+
+  /** Calls {@link https://nzbget-ng.github.io/api/resumescan | resumescan}. */
+  async resumeScan(): Promise<boolean> {
+    return this.rpc<boolean>('resumescan');
+  }
+
+  /** Calls {@link https://nzbget-ng.github.io/api/scheduleresume | scheduleresume}. */
+  async scheduleResume(seconds: number): Promise<boolean> {
+    return this.rpc<boolean>('scheduleresume', [seconds]);
+  }
+
   /** Calls {@link https://nzbget-ng.github.io/api/rate | rate}. */
   async setRate(limitBytesPerSecond: number): Promise<boolean> {
     return this.rpc<boolean>('rate', [limitBytesPerSecond]);
@@ -181,6 +216,11 @@ export class Nzbget implements UsenetClient {
     } catch {
       return this.rpc<boolean>('editqueue', [command, 0, `${parameter}`, normalizedIds]);
     }
+  }
+
+  /** Calls {@link https://nzbget-ng.github.io/api/scan | scan}. */
+  async scan(): Promise<boolean> {
+    return this.rpc<boolean>('scan');
   }
 
   async getCategories(): Promise<Category[]> {

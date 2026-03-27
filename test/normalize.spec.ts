@@ -317,4 +317,34 @@ describe('lookup helpers', () => {
       id: '999',
     });
   });
+
+  it('calls native control and pause rpc methods', async () => {
+    const client = new Nzbget();
+    const calls: Array<{ method: string; params: unknown[] }> = [];
+
+    // Verify the wrapper forwards the correct RPC method names.
+    client.rpc = async <T>(method: string, params: unknown[] = []): Promise<T> => {
+      calls.push({ method, params });
+      return true as T;
+    };
+
+    await expect(client.shutdown()).resolves.toBe(true);
+    await expect(client.reload()).resolves.toBe(true);
+    await expect(client.scan()).resolves.toBe(true);
+    await expect(client.pausePost()).resolves.toBe(true);
+    await expect(client.resumePost()).resolves.toBe(true);
+    await expect(client.pauseScan()).resolves.toBe(true);
+    await expect(client.resumeScan()).resolves.toBe(true);
+    await expect(client.scheduleResume(30)).resolves.toBe(true);
+    expect(calls).toEqual([
+      { method: 'shutdown', params: [] },
+      { method: 'reload', params: [] },
+      { method: 'scan', params: [] },
+      { method: 'pausepost', params: [] },
+      { method: 'resumepost', params: [] },
+      { method: 'pausescan', params: [] },
+      { method: 'resumescan', params: [] },
+      { method: 'scheduleresume', params: [30] },
+    ]);
+  });
 });
