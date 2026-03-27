@@ -38,6 +38,67 @@ export interface NzbGetNewsServerStatus {
   Active: boolean;
 }
 
+export type NzbGetLogKind = 'INFO' | 'WARNING' | 'ERROR' | 'DETAIL' | 'DEBUG';
+
+export interface NzbGetLogEntry {
+  /** ID of the log entry. */
+  ID: number;
+  /** Log entry class. */
+  Kind: Exclude<NzbGetLogKind, 'DETAIL'>;
+  /** Entry time in Unix seconds. */
+  Time: number;
+  /** Log message. */
+  Text: string;
+}
+
+export interface NzbGetVolumeSlot {
+  /** Downloaded amount, low 32 bits. */
+  SizeLo: number;
+  /** Downloaded amount, high 32 bits. */
+  SizeHi: number;
+  /** Downloaded amount in megabytes. */
+  SizeMB: number;
+}
+
+export interface NzbGetServerVolume {
+  /** ID of the news server. */
+  ServerID: number;
+  /** Time when the data was last updated. */
+  DataTime: number;
+  /** Total downloaded amount, low 32 bits. */
+  TotalSizeLo: number;
+  /** Total downloaded amount, high 32 bits. */
+  TotalSizeHi: number;
+  /** Total downloaded amount in megabytes. */
+  TotalSizeMB: number;
+  /** Custom counter amount, low 32 bits. */
+  CustomSizeLo: number;
+  /** Custom counter amount, high 32 bits. */
+  CustomSizeHi: number;
+  /** Custom counter amount in megabytes. */
+  CustomSizeMB: number;
+  /** Time of the last custom counter reset. */
+  CustomTime: number;
+  /** Per-second volume slots. */
+  BytesPerSeconds: NzbGetVolumeSlot[];
+  /** Per-minute volume slots. */
+  BytesPerMinutes: NzbGetVolumeSlot[];
+  /** Per-hour volume slots. */
+  BytesPerHours: NzbGetVolumeSlot[];
+  /** Per-day volume slots. */
+  BytesPerDays: NzbGetVolumeSlot[];
+  /** Current second slot index. */
+  SecSlot: number;
+  /** Current minute slot index. */
+  MinSlot: number;
+  /** Current hour slot index. */
+  HourSlot: number;
+  /** Current day slot index. */
+  DaySlot: number;
+  /** Calendar day for the first day slot. */
+  FirstDay: number;
+}
+
 export interface NzbGetStatus {
   /** Remaining queue size in bytes, low 32 bits of the 64-bit value. */
   RemainingSizeLo: number;

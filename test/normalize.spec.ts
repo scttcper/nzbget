@@ -21,6 +21,8 @@ import type {
   NzbGetEditQueueParameter,
   NzbGetHistoryStatus,
   NzbGetHistoryItem,
+  NzbGetLogEntry,
+  NzbGetLogKind,
   NzbGetNewsServerStatus,
   NzbGetMarkStatus,
   NzbGetDeleteStatus,
@@ -29,6 +31,7 @@ import type {
   NzbGetParStatus,
   NzbGetQueueStatus,
   NzbGetQueueItem,
+  NzbGetServerVolume,
   NzbGetSortParam,
   NzbGetScriptStatus,
   NzbGetStatus,
@@ -253,6 +256,17 @@ describe('lookup helpers', () => {
     expectTypeOf<NzbGetFile['FilenameConfirmed']>().toEqualTypeOf<boolean | undefined>();
   });
 
+  it('types documented log and volume payloads', () => {
+    expectTypeOf<NzbGetLogKind>().toEqualTypeOf<
+      'INFO' | 'WARNING' | 'ERROR' | 'DETAIL' | 'DEBUG'
+    >();
+    expectTypeOf<NzbGetLogEntry['Kind']>().toEqualTypeOf<'INFO' | 'WARNING' | 'ERROR' | 'DEBUG'>();
+    expectTypeOf<NzbGetServerVolume['BytesPerSeconds']>().toEqualTypeOf<
+      Array<{ SizeLo: number; SizeHi: number; SizeMB: number }>
+    >();
+    expectTypeOf<NzbGetServerVolume['ServerID']>().toEqualTypeOf<number>();
+  });
+
   it('finds queue and history jobs explicitly', async () => {
     const client = new Nzbget();
     const status = readFixture<NzbGetStatus>('status.json');
@@ -318,13 +332,17 @@ describe('lookup helpers', () => {
     });
   });
 
-  it('calls native control and pause rpc methods', async () => {
+  it('calls native control pause and logging rpc methods', async () => {
     const client = new Nzbget();
     const calls: Array<{ method: string; params: unknown[] }> = [];
 
     // Verify the wrapper forwards the correct RPC method names.
     client.rpc = async <T>(method: string, params: unknown[] = []): Promise<T> => {
       calls.push({ method, params });
+      if (method === 'log' || method === 'loadlog' || method === 'servervolumes') {
+        return [] as T;
+      }
+
       return true as T;
     };
 
@@ -336,6 +354,10 @@ describe('lookup helpers', () => {
     await expect(client.pauseScan()).resolves.toBe(true);
     await expect(client.resumeScan()).resolves.toBe(true);
     await expect(client.scheduleResume(30)).resolves.toBe(true);
+    await expect(client.log(10, 0)).resolves.toEqual(expect.any(Array));
+    await expect(client.writeLog('INFO', 'hello')).resolves.toBe(true);
+    await expect(client.loadLog(23, 10, 0)).resolves.toEqual(expect.any(Array));
+    await expect(client.serverVolumes()).resolves.toEqual(expect.any(Array));
     expect(calls).toEqual([
       { method: 'shutdown', params: [] },
       { method: 'reload', params: [] },
@@ -345,6 +367,10 @@ describe('lookup helpers', () => {
       { method: 'pausescan', params: [] },
       { method: 'resumescan', params: [] },
       { method: 'scheduleresume', params: [30] },
+      { method: 'log', params: [10, 0] },
+      { method: 'writelog', params: ['INFO', 'hello'] },
+      { method: 'loadlog', params: [23, 10, 0] },
+      { method: 'servervolumes', params: [] },
     ]);
   });
 });

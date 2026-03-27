@@ -36,7 +36,10 @@ import type {
   NzbGetEditQueueParameter,
   NzbGetFile,
   NzbGetHistoryItem,
+  NzbGetLogEntry,
+  NzbGetLogKind,
   NzbGetQueueItem,
+  NzbGetServerVolume,
   NzbGetSettings,
   NzbGetStatus,
 } from './types.js';
@@ -221,6 +224,34 @@ export class Nzbget implements UsenetClient {
   /** Calls {@link https://nzbget-ng.github.io/api/scan | scan}. */
   async scan(): Promise<boolean> {
     return this.rpc<boolean>('scan');
+  }
+
+  /** Calls {@link https://nzbget-ng.github.io/api/log | log}. */
+  async log(idFrom: number, numberOfEntries: number): Promise<NzbGetLogEntry[]> {
+    return this.rpc<NzbGetLogEntry[]>('log', [idFrom, numberOfEntries]);
+  }
+
+  /** Calls {@link https://nzbget-ng.github.io/api/writelog | writelog}. */
+  async writeLog(kind: NzbGetLogKind, text: string): Promise<boolean> {
+    return this.rpc<boolean>('writelog', [kind, text]);
+  }
+
+  /** Calls {@link https://nzbget-ng.github.io/api/loadlog | loadlog}. */
+  async loadLog(
+    nzbId: number | string,
+    idFrom: number,
+    numberOfEntries: number,
+  ): Promise<NzbGetLogEntry[]> {
+    return this.rpc<NzbGetLogEntry[]>('loadlog', [
+      Number.parseInt(`${nzbId}`, 10),
+      idFrom,
+      numberOfEntries,
+    ]);
+  }
+
+  /** Calls {@link https://nzbget-ng.github.io/api/servervolumes | servervolumes}. */
+  async serverVolumes(): Promise<NzbGetServerVolume[]> {
+    return this.rpc<NzbGetServerVolume[]>('servervolumes');
   }
 
   async getCategories(): Promise<Category[]> {
