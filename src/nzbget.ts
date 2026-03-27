@@ -31,11 +31,13 @@ import type {
   JsonRpcResponse,
   NzbGetAddOptions,
   NzbGetConfigItem,
-  NzbGetSettings,
   NzbGetConfigTemplate,
+  NzbGetEditQueueCommand,
+  NzbGetEditQueueParameter,
   NzbGetFile,
   NzbGetHistoryItem,
   NzbGetQueueItem,
+  NzbGetSettings,
   NzbGetStatus,
 } from './types.js';
 
@@ -162,14 +164,14 @@ export class Nzbget implements UsenetClient {
       options.dupeKey ?? '',
       options.dupeScore ?? 0,
       options.dupeMode ?? 'all',
-      [],
+      options.ppParameters ?? [],
     ]);
   }
 
   /** Calls {@link https://nzbget-ng.github.io/api/editqueue | editqueue}. */
-  async editQueue(
-    command: string,
-    parameter: string | number,
+  async editQueue<TCommand extends NzbGetEditQueueCommand>(
+    command: TCommand,
+    parameter: NzbGetEditQueueParameter<TCommand>,
     ids: Array<number | string> | number | string,
   ): Promise<boolean> {
     const normalizedIds = normalizeIds(ids);
@@ -234,7 +236,7 @@ export class Nzbget implements UsenetClient {
       return true;
     }
 
-    return this.editQueue('GroupMoveOffset', `${offset}`, id);
+    return this.editQueue('GroupMoveOffset', offset, id);
   }
 
   async setCategory(id: string, category: string): Promise<boolean> {
