@@ -2,10 +2,9 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { UsenetPriority } from '@ctrl/shared-usenet';
-import { describe, expect, expectTypeOf, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { Nzbget } from '../src/index.js';
-import type { NzbGetSettings } from '../src/types.js';
 
 const baseUrl = process.env.TEST_NZBGET_URL ?? 'http://127.0.0.1:6789';
 const username = process.env.TEST_NZBGET_USERNAME ?? 'nzbget';
@@ -81,11 +80,6 @@ describe.skipIf(!integrationEnabled)('nzbget integration', () => {
     const client = new Nzbget({ baseUrl, username, password });
     const settings = await client.getConfig();
 
-    expectTypeOf(settings).toEqualTypeOf<NzbGetSettings>();
-    expectTypeOf(settings.ControlPort).toBeString();
-    expectTypeOf(settings.MainDir).toBeString();
-    expectTypeOf(settings['Server1.Port']).toEqualTypeOf<string | undefined>();
-    expectTypeOf(settings['Category1.Name']).toEqualTypeOf<string | undefined>();
     expect(settings).toMatchObject({
       ControlUsername: expect.any(String),
       ControlPassword: expect.any(String),

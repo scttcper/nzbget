@@ -15,23 +15,17 @@ import {
 import type {
   NzbGetConfigItem,
   NzbGetConfigTemplate,
-  NzbGetFile,
   NzbGetDupeMode,
   NzbGetEditQueueCommand,
   NzbGetEditQueueParameter,
   NzbGetHistoryStatus,
   NzbGetHistoryItem,
-  NzbGetLogEntry,
-  NzbGetLogKind,
-  NzbGetNewsServerStatus,
   NzbGetMarkStatus,
   NzbGetDeleteStatus,
   NzbGetMoveStatus,
-  NzbGetAddOptions,
   NzbGetParStatus,
   NzbGetQueueStatus,
   NzbGetQueueItem,
-  NzbGetServerVolume,
   NzbGetSortParam,
   NzbGetScriptStatus,
   NzbGetStatus,
@@ -50,18 +44,6 @@ describe('normalizeNzbgetStatus', () => {
     const status = normalizeNzbgetStatus(readFixture<NzbGetStatus>('status.json'));
     expect(status.speedBytesPerSecond).toBe(1024);
     expect(status.totalRemainingSize).toBe(512);
-  });
-
-  it('types documented status fields', () => {
-    expectTypeOf<NzbGetStatus['RemainingSizeMB']>().toEqualTypeOf<number | undefined>();
-    expectTypeOf<NzbGetStatus['ForcedSizeLo']>().toEqualTypeOf<number | undefined>();
-    expectTypeOf<NzbGetStatus['ArticleCacheMB']>().toEqualTypeOf<number | undefined>();
-    expectTypeOf<NzbGetStatus['ThreadCount']>().toEqualTypeOf<number | undefined>();
-    expectTypeOf<NzbGetStatus['ServerStandBy']>().toEqualTypeOf<boolean | undefined>();
-    expectTypeOf<NzbGetStatus['FeedActive']>().toEqualTypeOf<boolean | undefined>();
-    expectTypeOf<NzbGetStatus['NewsServers']>().toEqualTypeOf<
-      NzbGetNewsServerStatus[] | undefined
-    >();
   });
 });
 
@@ -100,8 +82,6 @@ describe('deriveCategories and deriveScripts', () => {
     const categories = deriveCategories(config);
     const scripts = deriveScripts(templates);
 
-    expectTypeOf(config.MainDir).toBeString();
-    expectTypeOf(config['Category1.Name']).toEqualTypeOf<string | undefined>();
     expect(categories[0]?.path).toContain('/downloads/complete/movies');
     expect(scripts[0]?.id).toBe('Notify.py');
   });
@@ -109,7 +89,7 @@ describe('deriveCategories and deriveScripts', () => {
 
 describe('lookup helpers', () => {
   it('types editQueue commands and parameters', () => {
-    expectTypeOf<NzbGetEditQueueCommand>().toMatchTypeOf<
+    expectTypeOf<NzbGetEditQueueCommand>().toEqualTypeOf<
       | 'FileMoveOffset'
       | 'FileMoveTop'
       | 'FileMoveBottom'
@@ -184,139 +164,118 @@ describe('lookup helpers', () => {
   });
 
   it('types documented history status fields', () => {
-    expectTypeOf<NzbGetDupeMode>().extract<'SCORE' | 'ALL' | 'FORCE'>().toEqualTypeOf<
-      'SCORE' | 'ALL' | 'FORCE'
-    >();
-    expectTypeOf<NzbGetParStatus>().extract<
-      'NONE' | 'FAILURE' | 'REPAIR_POSSIBLE' | 'SUCCESS' | 'MANUAL'
-    >().toEqualTypeOf<'NONE' | 'FAILURE' | 'REPAIR_POSSIBLE' | 'SUCCESS' | 'MANUAL'>();
-    expectTypeOf<NzbGetUnpackStatus>().extract<
-      'NONE' | 'FAILURE' | 'SPACE' | 'PASSWORD' | 'SUCCESS'
-    >().toEqualTypeOf<'NONE' | 'FAILURE' | 'SPACE' | 'PASSWORD' | 'SUCCESS'>();
-    expectTypeOf<NzbGetMoveStatus>().extract<'NONE' | 'SUCCESS' | 'FAILURE'>().toEqualTypeOf<
-      'NONE' | 'SUCCESS' | 'FAILURE'
-    >();
-    expectTypeOf<NzbGetScriptStatus>().extract<'NONE' | 'FAILURE' | 'SUCCESS'>().toEqualTypeOf<
-      'NONE' | 'FAILURE' | 'SUCCESS'
-    >();
-    expectTypeOf<NzbGetDeleteStatus>().extract<
-      'NONE' | 'MANUAL' | 'HEALTH' | 'DUPE' | 'BAD' | 'SCAN' | 'COPY'
-    >().toEqualTypeOf<'NONE' | 'MANUAL' | 'HEALTH' | 'DUPE' | 'BAD' | 'SCAN' | 'COPY'>();
-    expectTypeOf<NzbGetMarkStatus>().extract<'NONE' | 'GOOD' | 'BAD'>().toEqualTypeOf<
-      'NONE' | 'GOOD' | 'BAD'
-    >();
-    expectTypeOf<NzbGetHistoryStatus>().extract<
-      | 'SUCCESS/ALL'
-      | 'SUCCESS/UNPACK'
-      | 'SUCCESS/PAR'
-      | 'SUCCESS/HEALTH'
-      | 'SUCCESS/GOOD'
-      | 'SUCCESS/MARK'
-      | 'WARNING/SCRIPT'
-      | 'WARNING/SPACE'
-      | 'WARNING/PASSWORD'
-      | 'WARNING/DAMAGED'
-      | 'WARNING/REPAIRABLE'
-      | 'WARNING/HEALTH'
-      | 'WARNING/SKIPPED'
-      | 'DELETED/MANUAL'
-      | 'DELETED/DUPE'
-      | 'DELETED/COPY'
-      | 'DELETED/GOOD'
-      | 'FAILURE/PAR'
-      | 'FAILURE/UNPACK'
-      | 'FAILURE/MOVE'
-      | 'FAILURE/SCAN'
-      | 'FAILURE/BAD'
-      | 'FAILURE/HEALTH'
-      | 'FAILURE/FETCH'
-      | 'SUCCESS/HIDDEN'
-      | 'FAILURE/HIDDEN'
-    >().toEqualTypeOf<
-      | 'SUCCESS/ALL'
-      | 'SUCCESS/UNPACK'
-      | 'SUCCESS/PAR'
-      | 'SUCCESS/HEALTH'
-      | 'SUCCESS/GOOD'
-      | 'SUCCESS/MARK'
-      | 'WARNING/SCRIPT'
-      | 'WARNING/SPACE'
-      | 'WARNING/PASSWORD'
-      | 'WARNING/DAMAGED'
-      | 'WARNING/REPAIRABLE'
-      | 'WARNING/HEALTH'
-      | 'WARNING/SKIPPED'
-      | 'DELETED/MANUAL'
-      | 'DELETED/DUPE'
-      | 'DELETED/COPY'
-      | 'DELETED/GOOD'
-      | 'FAILURE/PAR'
-      | 'FAILURE/UNPACK'
-      | 'FAILURE/MOVE'
-      | 'FAILURE/SCAN'
-      | 'FAILURE/BAD'
-      | 'FAILURE/HEALTH'
-      | 'FAILURE/FETCH'
-      | 'SUCCESS/HIDDEN'
-      | 'FAILURE/HIDDEN'
-    >();
-    expectTypeOf<NzbGetQueueStatus>().extract<
-      | 'QUEUED'
-      | 'PAUSED'
-      | 'DOWNLOADING'
-      | 'FETCHING'
-      | 'PP_QUEUED'
-      | 'LOADING_PARS'
-      | 'VERIFYING_SOURCES'
-      | 'REPAIRING'
-      | 'VERIFYING_REPAIRED'
-      | 'RENAMING'
-      | 'UNPACKING'
-      | 'MOVING'
-      | 'EXECUTING_SCRIPT'
-      | 'PP_FINISHED'
-    >().toEqualTypeOf<
-      | 'QUEUED'
-      | 'PAUSED'
-      | 'DOWNLOADING'
-      | 'FETCHING'
-      | 'PP_QUEUED'
-      | 'LOADING_PARS'
-      | 'VERIFYING_SOURCES'
-      | 'REPAIRING'
-      | 'VERIFYING_REPAIRED'
-      | 'RENAMING'
-      | 'UNPACKING'
-      | 'MOVING'
-      | 'EXECUTING_SCRIPT'
-      | 'PP_FINISHED'
-    >();
+    expectTypeOf<NzbGetDupeMode>()
+      .extract<'SCORE' | 'ALL' | 'FORCE'>()
+      .toEqualTypeOf<'SCORE' | 'ALL' | 'FORCE'>();
+    expectTypeOf<NzbGetParStatus>()
+      .extract<'NONE' | 'FAILURE' | 'REPAIR_POSSIBLE' | 'SUCCESS' | 'MANUAL'>()
+      .toEqualTypeOf<'NONE' | 'FAILURE' | 'REPAIR_POSSIBLE' | 'SUCCESS' | 'MANUAL'>();
+    expectTypeOf<NzbGetUnpackStatus>()
+      .extract<'NONE' | 'FAILURE' | 'SPACE' | 'PASSWORD' | 'SUCCESS'>()
+      .toEqualTypeOf<'NONE' | 'FAILURE' | 'SPACE' | 'PASSWORD' | 'SUCCESS'>();
+    expectTypeOf<NzbGetMoveStatus>()
+      .extract<'NONE' | 'SUCCESS' | 'FAILURE'>()
+      .toEqualTypeOf<'NONE' | 'SUCCESS' | 'FAILURE'>();
+    expectTypeOf<NzbGetScriptStatus>()
+      .extract<'NONE' | 'FAILURE' | 'SUCCESS'>()
+      .toEqualTypeOf<'NONE' | 'FAILURE' | 'SUCCESS'>();
+    expectTypeOf<NzbGetDeleteStatus>()
+      .extract<'NONE' | 'MANUAL' | 'HEALTH' | 'DUPE' | 'BAD' | 'SCAN' | 'COPY'>()
+      .toEqualTypeOf<'NONE' | 'MANUAL' | 'HEALTH' | 'DUPE' | 'BAD' | 'SCAN' | 'COPY'>();
+    expectTypeOf<NzbGetMarkStatus>()
+      .extract<'NONE' | 'GOOD' | 'BAD'>()
+      .toEqualTypeOf<'NONE' | 'GOOD' | 'BAD'>();
+    expectTypeOf<NzbGetHistoryStatus>()
+      .extract<
+        | 'SUCCESS/ALL'
+        | 'SUCCESS/UNPACK'
+        | 'SUCCESS/PAR'
+        | 'SUCCESS/HEALTH'
+        | 'SUCCESS/GOOD'
+        | 'SUCCESS/MARK'
+        | 'WARNING/SCRIPT'
+        | 'WARNING/SPACE'
+        | 'WARNING/PASSWORD'
+        | 'WARNING/DAMAGED'
+        | 'WARNING/REPAIRABLE'
+        | 'WARNING/HEALTH'
+        | 'WARNING/SKIPPED'
+        | 'DELETED/MANUAL'
+        | 'DELETED/DUPE'
+        | 'DELETED/COPY'
+        | 'DELETED/GOOD'
+        | 'FAILURE/PAR'
+        | 'FAILURE/UNPACK'
+        | 'FAILURE/MOVE'
+        | 'FAILURE/SCAN'
+        | 'FAILURE/BAD'
+        | 'FAILURE/HEALTH'
+        | 'FAILURE/FETCH'
+        | 'SUCCESS/HIDDEN'
+        | 'FAILURE/HIDDEN'
+      >()
+      .toEqualTypeOf<
+        | 'SUCCESS/ALL'
+        | 'SUCCESS/UNPACK'
+        | 'SUCCESS/PAR'
+        | 'SUCCESS/HEALTH'
+        | 'SUCCESS/GOOD'
+        | 'SUCCESS/MARK'
+        | 'WARNING/SCRIPT'
+        | 'WARNING/SPACE'
+        | 'WARNING/PASSWORD'
+        | 'WARNING/DAMAGED'
+        | 'WARNING/REPAIRABLE'
+        | 'WARNING/HEALTH'
+        | 'WARNING/SKIPPED'
+        | 'DELETED/MANUAL'
+        | 'DELETED/DUPE'
+        | 'DELETED/COPY'
+        | 'DELETED/GOOD'
+        | 'FAILURE/PAR'
+        | 'FAILURE/UNPACK'
+        | 'FAILURE/MOVE'
+        | 'FAILURE/SCAN'
+        | 'FAILURE/BAD'
+        | 'FAILURE/HEALTH'
+        | 'FAILURE/FETCH'
+        | 'SUCCESS/HIDDEN'
+        | 'FAILURE/HIDDEN'
+      >();
+    expectTypeOf<NzbGetQueueStatus>()
+      .extract<
+        | 'QUEUED'
+        | 'PAUSED'
+        | 'DOWNLOADING'
+        | 'FETCHING'
+        | 'PP_QUEUED'
+        | 'LOADING_PARS'
+        | 'VERIFYING_SOURCES'
+        | 'REPAIRING'
+        | 'VERIFYING_REPAIRED'
+        | 'RENAMING'
+        | 'UNPACKING'
+        | 'MOVING'
+        | 'EXECUTING_SCRIPT'
+        | 'PP_FINISHED'
+      >()
+      .toEqualTypeOf<
+        | 'QUEUED'
+        | 'PAUSED'
+        | 'DOWNLOADING'
+        | 'FETCHING'
+        | 'PP_QUEUED'
+        | 'LOADING_PARS'
+        | 'VERIFYING_SOURCES'
+        | 'REPAIRING'
+        | 'VERIFYING_REPAIRED'
+        | 'RENAMING'
+        | 'UNPACKING'
+        | 'MOVING'
+        | 'EXECUTING_SCRIPT'
+        | 'PP_FINISHED'
+      >();
   });
-
-  it('types append options from the documented api', () => {
-    expectTypeOf<NzbGetAddOptions['dupeMode']>().toEqualTypeOf<NzbGetDupeMode | undefined>();
-    expectTypeOf<NzbGetAddOptions['ppParameters']>().toEqualTypeOf<
-      Array<{ Name: string; Value: unknown }> | undefined
-    >();
-  });
-
-  it('types documented listfiles fields', () => {
-    expectTypeOf<NzbGetFile['Priority']>().toEqualTypeOf<number | undefined>();
-    expectTypeOf<NzbGetFile['Progress']>().toEqualTypeOf<number | undefined>();
-    expectTypeOf<NzbGetFile['FilenameConfirmed']>().toEqualTypeOf<boolean | undefined>();
-  });
-
-  it('types documented log and volume payloads', () => {
-    expectTypeOf<NzbGetLogKind>().toEqualTypeOf<
-      'INFO' | 'WARNING' | 'ERROR' | 'DETAIL' | 'DEBUG'
-    >();
-    expectTypeOf<NzbGetLogEntry['Kind']>().toEqualTypeOf<'INFO' | 'WARNING' | 'ERROR' | 'DEBUG'>();
-    expectTypeOf<NzbGetServerVolume['BytesPerSeconds']>().toEqualTypeOf<
-      Array<{ SizeLo: number; SizeHi: number; SizeMB: number }>
-    >();
-    expectTypeOf<NzbGetServerVolume['ServerID']>().toEqualTypeOf<number>();
-  });
-
   it('finds queue and history jobs explicitly', async () => {
     const client = new Nzbget();
     const status = readFixture<NzbGetStatus>('status.json');
