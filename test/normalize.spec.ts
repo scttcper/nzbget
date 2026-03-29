@@ -184,20 +184,55 @@ describe('lookup helpers', () => {
   });
 
   it('types documented history status fields', () => {
-    expectTypeOf<NzbGetDupeMode>().toMatchTypeOf<'SCORE' | 'ALL' | 'FORCE'>();
-    expectTypeOf<NzbGetParStatus>().toMatchTypeOf<
+    expectTypeOf<NzbGetDupeMode>().extract<'SCORE' | 'ALL' | 'FORCE'>().toEqualTypeOf<
+      'SCORE' | 'ALL' | 'FORCE'
+    >();
+    expectTypeOf<NzbGetParStatus>().extract<
       'NONE' | 'FAILURE' | 'REPAIR_POSSIBLE' | 'SUCCESS' | 'MANUAL'
-    >();
-    expectTypeOf<NzbGetUnpackStatus>().toMatchTypeOf<
+    >().toEqualTypeOf<'NONE' | 'FAILURE' | 'REPAIR_POSSIBLE' | 'SUCCESS' | 'MANUAL'>();
+    expectTypeOf<NzbGetUnpackStatus>().extract<
       'NONE' | 'FAILURE' | 'SPACE' | 'PASSWORD' | 'SUCCESS'
+    >().toEqualTypeOf<'NONE' | 'FAILURE' | 'SPACE' | 'PASSWORD' | 'SUCCESS'>();
+    expectTypeOf<NzbGetMoveStatus>().extract<'NONE' | 'SUCCESS' | 'FAILURE'>().toEqualTypeOf<
+      'NONE' | 'SUCCESS' | 'FAILURE'
     >();
-    expectTypeOf<NzbGetMoveStatus>().toMatchTypeOf<'NONE' | 'SUCCESS' | 'FAILURE'>();
-    expectTypeOf<NzbGetScriptStatus>().toMatchTypeOf<'NONE' | 'FAILURE' | 'SUCCESS'>();
-    expectTypeOf<NzbGetDeleteStatus>().toMatchTypeOf<
+    expectTypeOf<NzbGetScriptStatus>().extract<'NONE' | 'FAILURE' | 'SUCCESS'>().toEqualTypeOf<
+      'NONE' | 'FAILURE' | 'SUCCESS'
+    >();
+    expectTypeOf<NzbGetDeleteStatus>().extract<
       'NONE' | 'MANUAL' | 'HEALTH' | 'DUPE' | 'BAD' | 'SCAN' | 'COPY'
+    >().toEqualTypeOf<'NONE' | 'MANUAL' | 'HEALTH' | 'DUPE' | 'BAD' | 'SCAN' | 'COPY'>();
+    expectTypeOf<NzbGetMarkStatus>().extract<'NONE' | 'GOOD' | 'BAD'>().toEqualTypeOf<
+      'NONE' | 'GOOD' | 'BAD'
     >();
-    expectTypeOf<NzbGetMarkStatus>().toMatchTypeOf<'NONE' | 'GOOD' | 'BAD'>();
-    expectTypeOf<NzbGetHistoryStatus>().toMatchTypeOf<
+    expectTypeOf<NzbGetHistoryStatus>().extract<
+      | 'SUCCESS/ALL'
+      | 'SUCCESS/UNPACK'
+      | 'SUCCESS/PAR'
+      | 'SUCCESS/HEALTH'
+      | 'SUCCESS/GOOD'
+      | 'SUCCESS/MARK'
+      | 'WARNING/SCRIPT'
+      | 'WARNING/SPACE'
+      | 'WARNING/PASSWORD'
+      | 'WARNING/DAMAGED'
+      | 'WARNING/REPAIRABLE'
+      | 'WARNING/HEALTH'
+      | 'WARNING/SKIPPED'
+      | 'DELETED/MANUAL'
+      | 'DELETED/DUPE'
+      | 'DELETED/COPY'
+      | 'DELETED/GOOD'
+      | 'FAILURE/PAR'
+      | 'FAILURE/UNPACK'
+      | 'FAILURE/MOVE'
+      | 'FAILURE/SCAN'
+      | 'FAILURE/BAD'
+      | 'FAILURE/HEALTH'
+      | 'FAILURE/FETCH'
+      | 'SUCCESS/HIDDEN'
+      | 'FAILURE/HIDDEN'
+    >().toEqualTypeOf<
       | 'SUCCESS/ALL'
       | 'SUCCESS/UNPACK'
       | 'SUCCESS/PAR'
@@ -225,7 +260,22 @@ describe('lookup helpers', () => {
       | 'SUCCESS/HIDDEN'
       | 'FAILURE/HIDDEN'
     >();
-    expectTypeOf<NzbGetQueueStatus>().toMatchTypeOf<
+    expectTypeOf<NzbGetQueueStatus>().extract<
+      | 'QUEUED'
+      | 'PAUSED'
+      | 'DOWNLOADING'
+      | 'FETCHING'
+      | 'PP_QUEUED'
+      | 'LOADING_PARS'
+      | 'VERIFYING_SOURCES'
+      | 'REPAIRING'
+      | 'VERIFYING_REPAIRED'
+      | 'RENAMING'
+      | 'UNPACKING'
+      | 'MOVING'
+      | 'EXECUTING_SCRIPT'
+      | 'PP_FINISHED'
+    >().toEqualTypeOf<
       | 'QUEUED'
       | 'PAUSED'
       | 'DOWNLOADING'
@@ -335,9 +385,12 @@ describe('lookup helpers', () => {
   it('calls native control pause and logging rpc methods', async () => {
     const client = new Nzbget();
     const calls: Array<{ method: string; params: unknown[] }> = [];
+    const transport = client as unknown as {
+      rpc: <T>(method: string, params?: unknown[]) => Promise<T>;
+    };
 
     // Verify the wrapper forwards the correct RPC method names.
-    client.rpc = async <T>(method: string, params: unknown[] = []): Promise<T> => {
+    transport.rpc = async <T>(method: string, params: unknown[] = []): Promise<T> => {
       calls.push({ method, params });
       if (method === 'log' || method === 'loadlog' || method === 'servervolumes') {
         return [] as T;
