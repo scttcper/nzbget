@@ -4,7 +4,7 @@
 
 ### Overview
 
-Includes the normalized usenet API shared with `@ctrl/sabnzbd`:
+Includes the normalized usenet API shared through [@ctrl/shared-usenet](https://github.com/scttcper/shared-usenet) and also available in [@ctrl/sabnzbd](https://github.com/scttcper/sabnzbd):
 
 - [`getAllData()`](#getalldata)
 - [`getQueue()`](#getqueue)
@@ -176,3 +176,14 @@ Remove the disposable container when you are done:
 ```console
 docker rm -f nzbget-local-test
 ```
+
+### See Also
+
+- shared types - [@ctrl/shared-usenet](https://github.com/scttcper/shared-usenet)
+- torrent shared types - [@ctrl/shared-torrent](https://github.com/scttcper/shared-torrent)
+- sabnzbd - [@ctrl/sabnzbd](https://github.com/scttcper/sabnzbd)
+- deluge - [@ctrl/deluge](https://github.com/scttcper/deluge)
+- transmission - [@ctrl/transmission](https://github.com/scttcper/transmission)
+- qbittorrent - [@ctrl/qbittorrent](https://github.com/scttcper/qbittorrent)
+- utorrent - [@ctrl/utorrent](https://github.com/scttcper/utorrent)
+- rtorrent - [@ctrl/rtorrent](https://github.com/scttcper/rtorrent)
