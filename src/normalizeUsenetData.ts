@@ -139,38 +139,47 @@ function failedHistoryState(
 }
 
 function classifyNzbgetHistoryItem(item: NzbGetHistoryItem): NormalizedHistoryState {
-  const classifications: Array<NormalizedHistoryState | undefined> = [
-    item.DeleteStatus === 'MANUAL'
-      ? failedHistoryState(
-          item.MarkStatus === 'BAD' ? UsenetJobState.error : UsenetJobState.deleted,
-        )
-      : undefined,
-    !SUCCESS_STATUSES.has(item.ParStatus) ? failedHistoryState(UsenetJobState.error) : undefined,
-    item.UnpackStatus === 'SPACE'
-      ? failedHistoryState(UsenetJobState.warning)
-      : !SUCCESS_STATUSES.has(item.UnpackStatus)
-        ? failedHistoryState(UsenetJobState.error)
-        : undefined,
-    !SUCCESS_STATUSES.has(item.MoveStatus) ? failedHistoryState(UsenetJobState.warning) : undefined,
-    !SUCCESS_STATUSES.has(item.ScriptStatus) ? failedHistoryState(UsenetJobState.error) : undefined,
-    item.DeleteStatus && !SUCCESS_STATUSES.has(item.DeleteStatus) && item.DeleteStatus !== 'MANUAL'
-      ? failedHistoryState(
-          DELETE_FAILED_STATUSES.has(item.DeleteStatus)
-            ? UsenetJobState.error
-            : UsenetJobState.warning,
-        )
-      : undefined,
-  ];
+  let classification: NormalizedHistoryState = {
+    state: UsenetJobState.completed,
+    stateMessage: UsenetStateMessage.completed,
+    succeeded: true,
+  };
 
-  return (
-    classifications.findLast((classification): classification is NormalizedHistoryState =>
-      Boolean(classification),
-    ) ?? {
-      state: UsenetJobState.completed,
-      stateMessage: UsenetStateMessage.completed,
-      succeeded: true,
-    }
-  );
+  if (item.DeleteStatus === 'MANUAL') {
+    classification = failedHistoryState(
+      item.MarkStatus === 'BAD' ? UsenetJobState.error : UsenetJobState.deleted,
+    );
+  }
+
+  if (!SUCCESS_STATUSES.has(item.ParStatus)) {
+    classification = failedHistoryState(UsenetJobState.error);
+  }
+
+  if (item.UnpackStatus === 'SPACE') {
+    classification = failedHistoryState(UsenetJobState.warning);
+  } else if (!SUCCESS_STATUSES.has(item.UnpackStatus)) {
+    classification = failedHistoryState(UsenetJobState.error);
+  }
+
+  if (!SUCCESS_STATUSES.has(item.MoveStatus)) {
+    classification = failedHistoryState(UsenetJobState.warning);
+  }
+
+  if (!SUCCESS_STATUSES.has(item.ScriptStatus)) {
+    classification = failedHistoryState(UsenetJobState.error);
+  }
+
+  if (
+    item.DeleteStatus &&
+    !SUCCESS_STATUSES.has(item.DeleteStatus) &&
+    item.DeleteStatus !== 'MANUAL'
+  ) {
+    classification = failedHistoryState(
+      DELETE_FAILED_STATUSES.has(item.DeleteStatus) ? UsenetJobState.error : UsenetJobState.warning,
+    );
+  }
+
+  return classification;
 }
 
 export function normalizeNzbgetStatus(status: NzbGetStatus): NormalizedUsenetStatus {
