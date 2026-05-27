@@ -21,16 +21,30 @@ import type {
 const SUCCESS_STATUSES = new Set(['SUCCESS', 'NONE']);
 const DELETE_FAILED_STATUSES = new Set(['HEALTH', 'DUPE', 'SCAN', 'COPY', 'BAD']);
 
+interface NormalizedHistoryState {
+  state: UsenetJobState;
+  stateMessage: UsenetStateMessage;
+  succeeded: boolean;
+}
+
 export function combineInt64(high: number | undefined, low: number | undefined): number {
   return Number(BigInt(high ?? 0) * 4_294_967_296n + BigInt(low ?? 0));
 }
 
-function getParameterValue(
+export function getNzbgetParameterValue(
   parameters: Array<{ Name: string; Value: unknown }> | undefined,
   name: string,
 ): string | undefined {
   const match = parameters?.find(parameter => parameter.Name === name);
   return typeof match?.Value === 'string' ? match.Value : undefined;
+}
+
+export function getNzbgetQueueItemId(item: NzbGetQueueItem): string {
+  return getNzbgetParameterValue(item.Parameters, 'drone') ?? `${item.NZBID}`;
+}
+
+export function getNzbgetHistoryItemId(item: NzbGetHistoryItem): string {
+  return getNzbgetParameterValue(item.Parameters, 'drone') ?? `${item.ID}`;
 }
 
 export function nzbgetPriorityToNormalized(priority: number): UsenetPriority {
@@ -98,6 +112,76 @@ function buildHistoryMessage(item: NzbGetHistoryItem): string {
   ].join(', ');
 }
 
+function failedHistoryState(
+  state: UsenetJobState.error | UsenetJobState.warning | UsenetJobState.deleted,
+): NormalizedHistoryState {
+  if (state === UsenetJobState.error) {
+    return {
+      state,
+      stateMessage: UsenetStateMessage.failed,
+      succeeded: false,
+    };
+  }
+
+  if (state === UsenetJobState.warning) {
+    return {
+      state,
+      stateMessage: UsenetStateMessage.warning,
+      succeeded: false,
+    };
+  }
+
+  return {
+    state,
+    stateMessage: UsenetStateMessage.deleted,
+    succeeded: false,
+  };
+}
+
+function classifyNzbgetHistoryItem(item: NzbGetHistoryItem): NormalizedHistoryState {
+  let classification: NormalizedHistoryState = {
+    state: UsenetJobState.completed,
+    stateMessage: UsenetStateMessage.completed,
+    succeeded: true,
+  };
+
+  if (item.DeleteStatus === 'MANUAL') {
+    classification = failedHistoryState(
+      item.MarkStatus === 'BAD' ? UsenetJobState.error : UsenetJobState.deleted,
+    );
+  }
+
+  if (!SUCCESS_STATUSES.has(item.ParStatus)) {
+    classification = failedHistoryState(UsenetJobState.error);
+  }
+
+  if (item.UnpackStatus === 'SPACE') {
+    classification = failedHistoryState(UsenetJobState.warning);
+  } else if (!SUCCESS_STATUSES.has(item.UnpackStatus)) {
+    classification = failedHistoryState(UsenetJobState.error);
+  }
+
+  if (!SUCCESS_STATUSES.has(item.MoveStatus)) {
+    classification = failedHistoryState(UsenetJobState.warning);
+  }
+
+  if (!SUCCESS_STATUSES.has(item.ScriptStatus)) {
+    classification = failedHistoryState(UsenetJobState.error);
+  }
+
+  if (
+    item.DeleteStatus &&
+    !SUCCESS_STATUSES.has(item.DeleteStatus) &&
+    item.DeleteStatus !== 'MANUAL'
+  ) {
+    classification = failedHistoryState(
+      DELETE_FAILED_STATUSES.has(item.DeleteStatus) ? UsenetJobState.error : UsenetJobState.warning,
+    );
+  }
+
+  return classification;
+}
+
 export function normalizeNzbgetStatus(status: NzbGetStatus): NormalizedUsenetStatus {
   return {
     isDownloadPaused: status.DownloadPaused,
@@ -117,7 +201,7 @@ export function normalizeNzbgetJob(
   const totalSize = combineInt64(item.FileSizeHi, item.FileSizeLo);
   const remainingSize = combineInt64(item.RemainingSizeHi, item.RemainingSizeLo);
   const pausedSize = combineInt64(item.PausedSizeHi, item.PausedSizeLo);
-  const activeId = getParameterValue(item.Parameters, 'drone') ?? `${item.NZBID}`;
+  const activeId = getNzbgetQueueItemId(item);
   const averagePriority = Math.round((item.MinPriority + item.MaxPriority) / 2);
   const progress = totalSize === 0 ? 0 : ((totalSize - remainingSize) / totalSize) * 100;
 
@@ -159,59 +243,9 @@ export function normalizeNzbgetJob(
 
 export function normalizeNzbgetHistoryItem(item: NzbGetHistoryItem): NormalizedUsenetHistoryItem {
   const totalSize = combineInt64(item.FileSizeHi, item.FileSizeLo);
-  const activeId = getParameterValue(item.Parameters, 'drone') ?? `${item.ID}`;
+  const activeId = getNzbgetHistoryItemId(item);
   const failureMessage = buildHistoryMessage(item);
-  let state = UsenetJobState.completed;
-  let stateMessage = UsenetStateMessage.completed;
-  let succeeded = true;
-
-  if (item.DeleteStatus === 'MANUAL') {
-    state = item.MarkStatus === 'BAD' ? UsenetJobState.error : UsenetJobState.deleted;
-    stateMessage =
-      item.MarkStatus === 'BAD' ? UsenetStateMessage.failed : UsenetStateMessage.deleted;
-    succeeded = false;
-  }
-
-  if (!SUCCESS_STATUSES.has(item.ParStatus)) {
-    state = UsenetJobState.error;
-    stateMessage = UsenetStateMessage.failed;
-    succeeded = false;
-  }
-
-  if (item.UnpackStatus === 'SPACE') {
-    state = UsenetJobState.warning;
-    stateMessage = UsenetStateMessage.warning;
-    succeeded = false;
-  } else if (!SUCCESS_STATUSES.has(item.UnpackStatus)) {
-    state = UsenetJobState.error;
-    stateMessage = UsenetStateMessage.failed;
-    succeeded = false;
-  }
-
-  if (!SUCCESS_STATUSES.has(item.MoveStatus)) {
-    state = UsenetJobState.warning;
-    stateMessage = UsenetStateMessage.warning;
-    succeeded = false;
-  }
-
-  if (!SUCCESS_STATUSES.has(item.ScriptStatus)) {
-    state = UsenetJobState.error;
-    stateMessage = UsenetStateMessage.failed;
-    succeeded = false;
-  }
-
-  if (
-    item.DeleteStatus &&
-    !SUCCESS_STATUSES.has(item.DeleteStatus) &&
-    item.DeleteStatus !== 'MANUAL'
-  ) {
-    state = DELETE_FAILED_STATUSES.has(item.DeleteStatus)
-      ? UsenetJobState.error
-      : UsenetJobState.warning;
-    stateMessage =
-      state === UsenetJobState.error ? UsenetStateMessage.failed : UsenetStateMessage.warning;
-    succeeded = false;
-  }
+  const { state, stateMessage, succeeded } = classifyNzbgetHistoryItem(item);
 
   return {
     id: activeId,

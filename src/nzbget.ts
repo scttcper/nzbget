@@ -22,6 +22,8 @@ import {
   configItemsToMap,
   deriveCategories,
   deriveScripts,
+  getNzbgetHistoryItemId,
+  getNzbgetQueueItemId,
   normalizeNzbgetHistoryItem,
   normalizeNzbgetJob,
   normalizeNzbgetStatus,
@@ -69,6 +71,26 @@ function normalizeIds(ids: Array<number | string> | number | string): number[] {
 
 function toBase64(input: string | Uint8Array): string {
   return uint8ArrayToBase64(typeof input === 'string' ? stringToUint8Array(input) : input);
+}
+
+function findQueueItem(
+  groups: NzbGetQueueItem[],
+  id: string,
+): { item: NzbGetQueueItem; index: number } | undefined {
+  const index = groups.findIndex(
+    item => getNzbgetQueueItemId(item) === id || `${item.NZBID}` === id,
+  );
+  const item = index === -1 ? undefined : groups[index];
+  return item ? { item, index } : undefined;
+}
+
+function findHistoryItem(history: NzbGetHistoryItem[], id: string): NzbGetHistoryItem | undefined {
+  return history.find(
+    item =>
+      getNzbgetHistoryItemId(item) === id ||
+      `${item.ID}` === id ||
+      (item.NZBID !== undefined && `${item.NZBID}` === id),
+  );
 }
 
 async function sleep(milliseconds: number): Promise<void> {
@@ -284,9 +306,8 @@ export class Nzbget implements UsenetClient {
 
   async moveJob(id: string, position: number): Promise<boolean> {
     const queue = await this.listGroups();
-    const rawId = Number.parseInt(id, 10);
-    const currentIndex = queue.findIndex(item => item.NZBID === rawId);
-    if (currentIndex === -1) {
+    const queueMatch = findQueueItem(queue, id);
+    if (!queueMatch) {
       throw new UsenetNotFoundError('nzbget', 'queueJob', id);
     }
 
@@ -302,7 +323,7 @@ export class Nzbget implements UsenetClient {
       return this.editQueue('GroupMoveBottom', '', id);
     }
 
-    const offset = position - currentIndex;
+    const offset = position - queueMatch.index;
     if (offset === 0) {
       return true;
     }
@@ -352,21 +373,18 @@ export class Nzbget implements UsenetClient {
   }
 
   async getQueueJob(id: string): Promise<NormalizedUsenetJob> {
-    const rawId = Number.parseInt(id, 10);
     const [status, groups] = await Promise.all([this.status(), this.listGroups()]);
-    const index = groups.findIndex(group => group.NZBID === rawId);
-    const group = index === -1 ? undefined : groups[index];
-    if (!group) {
+    const queueMatch = findQueueItem(groups, id);
+    if (!queueMatch) {
       throw new UsenetNotFoundError('nzbget', 'queueJob', id);
     }
 
-    return normalizeNzbgetJob(group, status, index);
+    return normalizeNzbgetJob(queueMatch.item, status, queueMatch.index);
   }
 
   async getHistoryJob(id: string): Promise<NormalizedUsenetHistoryItem> {
-    const rawId = Number.parseInt(id, 10);
     const history = await this.history();
-    const historyItem = history.find(item => item.ID === rawId);
+    const historyItem = findHistoryItem(history, id);
     if (!historyItem) {
       throw new UsenetNotFoundError('nzbget', 'historyJob', id);
     }
@@ -375,19 +393,17 @@ export class Nzbget implements UsenetClient {
   }
 
   async findJob(id: string): Promise<FoundUsenetJob | null> {
-    const rawId = Number.parseInt(id, 10);
     const [status, groups] = await Promise.all([this.status(), this.listGroups()]);
-    const index = groups.findIndex(group => group.NZBID === rawId);
-    const group = index === -1 ? undefined : groups[index];
-    if (group) {
+    const queueMatch = findQueueItem(groups, id);
+    if (queueMatch) {
       return {
         source: 'queue',
-        job: normalizeNzbgetJob(group, status, index),
+        job: normalizeNzbgetJob(queueMatch.item, status, queueMatch.index),
       };
     }
 
     const history = await this.history();
-    const historyItem = history.find(item => item.ID === rawId);
+    const historyItem = findHistoryItem(history, id);
     if (historyItem) {
       return {
         source: 'history',
@@ -429,18 +445,16 @@ export class Nzbget implements UsenetClient {
       'url' in input
         ? await this.addNzbUrl(input.url, options)
         : await this.addNzbFile(input.file, options);
-    const rawId = Number.parseInt(id, 10);
 
-    if (rawId <= 0) {
+    if (Number.parseInt(id, 10) <= 0) {
       throw new Error('NZBGet did not return a queue id');
     }
 
     for (let attempt = 0; attempt < 10; attempt++) {
       const [status, groups] = await Promise.all([this.status(), this.listGroups()]);
-      const index = groups.findIndex(group => group.NZBID === rawId);
-      const group = index === -1 ? undefined : groups[index];
-      if (group) {
-        return normalizeNzbgetJob(group, status, index);
+      const queueMatch = findQueueItem(groups, id);
+      if (queueMatch) {
+        return normalizeNzbgetJob(queueMatch.item, status, queueMatch.index);
       }
 
       await sleep(250);
