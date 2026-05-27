@@ -281,22 +281,50 @@ describe('lookup helpers', () => {
     const status = readFixture<NzbGetStatus>('status.json');
     const queue = readFixture<NzbGetQueueItem[]>('queue.json');
     const history = readFixture<NzbGetHistoryItem[]>('history.json');
+    const queueWithDroneId: NzbGetQueueItem[] = [
+      {
+        ...queue[0]!,
+        Parameters: [{ Name: 'drone', Value: 'drone-queue-23' }],
+      },
+    ];
+    const historyWithDroneId: NzbGetHistoryItem[] = [
+      {
+        ...history[0]!,
+        Parameters: [{ Name: 'drone', Value: 'drone-history-41' }],
+      },
+    ];
 
     client.status = async () => status;
-    client.listGroups = async () => queue;
-    client.history = async () => history;
+    client.listGroups = async () => queueWithDroneId;
+    client.history = async () => historyWithDroneId;
 
     const queueJob = await client.getQueueJob('23');
     expect(queueJob.name).toBe('movie.release');
+    expect(queueJob.id).toBe('drone-queue-23');
 
     const historyJob = await client.getHistoryJob('41');
     expect(historyJob.name).toBe('completed.release');
+    expect(historyJob.id).toBe('drone-history-41');
+
+    const normalizedQueueJob = await client.getQueueJob('drone-queue-23');
+    expect(normalizedQueueJob.name).toBe('movie.release');
+
+    const normalizedHistoryJob = await client.getHistoryJob('drone-history-41');
+    expect(normalizedHistoryJob.name).toBe('completed.release');
 
     const foundQueue = await client.findJob('23');
     expect(foundQueue?.source).toBe('queue');
+    expect(foundQueue?.job.id).toBe('drone-queue-23');
 
     const foundHistory = await client.findJob('41');
     expect(foundHistory?.source).toBe('history');
+    expect(foundHistory?.job.id).toBe('drone-history-41');
+
+    const foundNormalizedQueue = await client.findJob('drone-queue-23');
+    expect(foundNormalizedQueue?.source).toBe('queue');
+
+    const foundNormalizedHistory = await client.findJob('drone-history-41');
+    expect(foundNormalizedHistory?.source).toBe('history');
 
     await expect(client.getQueueJob('999')).rejects.toMatchObject({
       name: 'UsenetNotFoundError',
