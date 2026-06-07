@@ -293,15 +293,15 @@ export class Nzbget implements UsenetClient {
   }
 
   async pauseJob(id: string): Promise<boolean> {
-    return this.editQueue('GroupPause', '', id);
+    return this.editQueueJob('GroupPause', '', id);
   }
 
   async resumeJob(id: string): Promise<boolean> {
-    return this.editQueue('GroupResume', '', id);
+    return this.editQueueJob('GroupResume', '', id);
   }
 
   async removeJob(id: string, removeData = false): Promise<boolean> {
-    return this.editQueue(removeData ? 'GroupFinalDelete' : 'GroupDelete', '', id);
+    return this.editQueueJob(removeData ? 'GroupFinalDelete' : 'GroupDelete', '', id);
   }
 
   async moveJob(id: string, position: number): Promise<boolean> {
@@ -316,11 +316,11 @@ export class Nzbget implements UsenetClient {
     }
 
     if (position <= 0) {
-      return this.editQueue('GroupMoveTop', '', id);
+      return this.editQueue('GroupMoveTop', '', queueMatch.item.NZBID);
     }
 
     if (position >= queue.length - 1) {
-      return this.editQueue('GroupMoveBottom', '', id);
+      return this.editQueue('GroupMoveBottom', '', queueMatch.item.NZBID);
     }
 
     const offset = position - queueMatch.index;
@@ -328,15 +328,15 @@ export class Nzbget implements UsenetClient {
       return true;
     }
 
-    return this.editQueue('GroupMoveOffset', offset, id);
+    return this.editQueue('GroupMoveOffset', offset, queueMatch.item.NZBID);
   }
 
   async setCategory(id: string, category: string): Promise<boolean> {
-    return this.editQueue('GroupApplyCategory', category, id);
+    return this.editQueueJob('GroupApplyCategory', category, id);
   }
 
   async setPriority(id: string, priority: UsenetPriority): Promise<boolean> {
-    return this.editQueue('GroupSetPriority', normalizedPriorityToNzbget(priority), id);
+    return this.editQueueJob('GroupSetPriority', normalizedPriorityToNzbget(priority), id);
   }
 
   async addNzbFile(
@@ -492,5 +492,19 @@ export class Nzbget implements UsenetClient {
     }
 
     return response.result;
+  }
+
+  private async editQueueJob<TCommand extends NzbGetEditQueueCommand>(
+    command: TCommand,
+    parameter: NzbGetEditQueueParameter<TCommand>,
+    id: string,
+  ): Promise<boolean> {
+    const queue = await this.listGroups();
+    const queueMatch = findQueueItem(queue, id);
+    if (!queueMatch) {
+      throw new UsenetNotFoundError('nzbget', 'queueJob', id);
+    }
+
+    return this.editQueue(command, parameter, queueMatch.item.NZBID);
   }
 }
