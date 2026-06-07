@@ -5,6 +5,7 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import {
   Nzbget,
+  UsenetPriority,
   configItemsToMap,
   deriveCategories,
   deriveScripts,
@@ -367,6 +368,47 @@ describe('lookup helpers', () => {
       target: 'queueJob',
       id: '999',
     });
+  });
+
+  it('uses raw queue ids for normalized queue edit methods', async () => {
+    const client = new Nzbget();
+    const queue = readFixture<NzbGetQueueItem[]>('queue.json');
+    const editCalls: Array<{
+      command: NzbGetEditQueueCommand;
+      parameter: unknown;
+      ids: Array<number | string> | number | string;
+    }> = [];
+
+    client.listGroups = async () => [
+      {
+        ...queue[0]!,
+        Parameters: [{ Name: 'drone', Value: 'drone-queue-23' }],
+      },
+    ];
+    client.editQueue = async <TCommand extends NzbGetEditQueueCommand>(
+      command: TCommand,
+      parameter: NzbGetEditQueueParameter<TCommand>,
+      ids: Array<number | string> | number | string,
+    ): Promise<boolean> => {
+      editCalls.push({ command, parameter, ids });
+      return true;
+    };
+
+    await expect(client.pauseJob('drone-queue-23')).resolves.toBe(true);
+    await expect(client.resumeJob('drone-queue-23')).resolves.toBe(true);
+    await expect(client.removeJob('drone-queue-23')).resolves.toBe(true);
+    await expect(client.setCategory('drone-queue-23', 'movies')).resolves.toBe(true);
+    await expect(client.setPriority('drone-queue-23', UsenetPriority.veryHigh)).resolves.toBe(true);
+    await expect(client.moveJob('drone-queue-23', 0)).resolves.toBe(true);
+
+    expect(editCalls).toEqual([
+      { command: 'GroupPause', parameter: '', ids: 23 },
+      { command: 'GroupResume', parameter: '', ids: 23 },
+      { command: 'GroupDelete', parameter: '', ids: 23 },
+      { command: 'GroupApplyCategory', parameter: 'movies', ids: 23 },
+      { command: 'GroupSetPriority', parameter: 100, ids: 23 },
+      { command: 'GroupMoveTop', parameter: '', ids: 23 },
+    ]);
   });
 
   it('calls native control pause and logging rpc methods', async () => {
