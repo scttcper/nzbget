@@ -1,16 +1,20 @@
 import {
+  type AddNzbOptions,
   type Category,
   type NormalizedUsenetHistoryItem,
   type NormalizedUsenetJob,
   type NormalizedUsenetStatus,
   type Script,
   UsenetJobState,
+  UsenetPostProcess,
   UsenetPriority,
   UsenetStateMessage,
 } from '@ctrl/shared-usenet';
 
 import type {
+  NzbGetAddOptions,
   NzbGetConfigItem,
+  NzbGetParameter,
   NzbGetSettings,
   NzbGetConfigTemplate,
   NzbGetHistoryItem,
@@ -18,12 +22,12 @@ import type {
   NzbGetStatus,
 } from './types.js';
 
-const SUCCESS_STATUSES = new Set(['SUCCESS', 'NONE']);
-const DELETE_FAILED_STATUSES = new Set(['HEALTH', 'DUPE', 'SCAN', 'COPY', 'BAD']);
-
-interface NormalizedHistoryState {
+interface NormalizedJobState {
   state: UsenetJobState;
   stateMessage: UsenetStateMessage;
+}
+
+interface NormalizedHistoryState extends NormalizedJobState {
   succeeded: boolean;
 }
 
@@ -31,12 +35,31 @@ export function combineInt64(high: number | undefined, low: number | undefined):
   return Number(BigInt(high ?? 0) * 4_294_967_296n + BigInt(low ?? 0));
 }
 
+/**
+ * Prefers the 64-bit `*Lo`/`*Hi` pair (v24.2+) over the deprecated int32 field.
+ */
+function combineRate(high: number | undefined, low: number | undefined, legacy: number): number {
+  return low === undefined ? legacy : combineInt64(high, low);
+}
+
+export function getNzbgetDownloadRate(status: NzbGetStatus): number {
+  return combineRate(status.DownloadRateHi, status.DownloadRateLo, status.DownloadRate);
+}
+
+export function getNzbgetAverageDownloadRate(status: NzbGetStatus): number {
+  return combineRate(
+    status.AverageDownloadRateHi,
+    status.AverageDownloadRateLo,
+    status.AverageDownloadRate,
+  );
+}
+
 export function getNzbgetParameterValue(
   parameters: Array<{ Name: string; Value: unknown }> | undefined,
   name: string,
 ): string | undefined {
-  const match = parameters?.find(parameter => parameter.Name === name);
-  return typeof match?.Value === 'string' ? match.Value : undefined;
+  const value = parameters?.find(parameter => parameter.Name === name)?.Value;
+  return value === undefined ? undefined : String(value);
 }
 
 export function getNzbgetQueueItemId(item: NzbGetQueueItem): string {
@@ -44,7 +67,7 @@ export function getNzbgetQueueItemId(item: NzbGetQueueItem): string {
 }
 
 export function getNzbgetHistoryItemId(item: NzbGetHistoryItem): string {
-  return getNzbgetParameterValue(item.Parameters, 'drone') ?? `${item.ID}`;
+  return getNzbgetParameterValue(item.Parameters, 'drone') ?? `${item.NZBID}`;
 }
 
 export function nzbgetPriorityToNormalized(priority: number): UsenetPriority {
@@ -101,94 +124,181 @@ export function normalizedPriorityToNzbget(priority: UsenetPriority | undefined)
   }
 }
 
-function buildHistoryMessage(item: NzbGetHistoryItem): string {
-  return [
-    `par=${item.ParStatus}`,
-    `unpack=${item.UnpackStatus}`,
-    `move=${item.MoveStatus}`,
-    `script=${item.ScriptStatus}`,
-    `delete=${item.DeleteStatus}`,
-    `mark=${item.MarkStatus}`,
-  ].join(', ');
-}
+/**
+ * Maps the shared add options onto `append` arguments and pp-parameters.
+ *
+ * `*Unpack:` and `*Unpack:Password` are NZBGet's built-in per-job parameters
+ * and `<script>:` = `yes` enables a post-processing script for the job.
+ *
+ * @link https://nzbget.com/documentation/api/append/
+ */
+export function normalizedAddOptionsToNzbget(options: Partial<AddNzbOptions>): NzbGetAddOptions {
+  const ppParameters: NzbGetParameter[] = [];
 
-function failedHistoryState(
-  state: UsenetJobState.error | UsenetJobState.warning | UsenetJobState.deleted,
-): NormalizedHistoryState {
-  if (state === UsenetJobState.error) {
-    return {
-      state,
-      stateMessage: UsenetStateMessage.failed,
-      succeeded: false,
-    };
+  switch (options.postProcess) {
+    case UsenetPostProcess.none:
+    case UsenetPostProcess.repair: {
+      ppParameters.push({ Name: '*Unpack:', Value: 'no' });
+      break;
+    }
+    case UsenetPostProcess.repairUnpack:
+    case UsenetPostProcess.repairUnpackDelete: {
+      ppParameters.push({ Name: '*Unpack:', Value: 'yes' });
+      break;
+    }
+    default: {
+      break;
+    }
   }
 
-  if (state === UsenetJobState.warning) {
-    return {
-      state,
-      stateMessage: UsenetStateMessage.warning,
-      succeeded: false,
-    };
+  if (options.password) {
+    ppParameters.push({ Name: '*Unpack:Password', Value: options.password });
+  }
+
+  if (options.postProcessScript) {
+    ppParameters.push({ Name: `${options.postProcessScript}:`, Value: 'yes' });
   }
 
   return {
-    state,
-    stateMessage: UsenetStateMessage.deleted,
-    succeeded: false,
+    category: options.category ?? '',
+    priority: normalizedPriorityToNzbget(options.priority),
+    addPaused: options.startPaused === true || options.priority === UsenetPriority.paused,
+    ppParameters,
   };
 }
 
+function buildHistoryMessage(item: NzbGetHistoryItem): string {
+  const details =
+    item.Kind === 'URL'
+      ? [`url=${item.UrlStatus}`]
+      : [
+          `par=${item.ParStatus}`,
+          `unpack=${item.UnpackStatus}`,
+          `move=${item.MoveStatus}`,
+          `script=${item.ScriptStatus}`,
+          `delete=${item.DeleteStatus}`,
+          `mark=${item.MarkStatus}`,
+        ];
+  return [`status=${item.Status}`, ...details].join(', ');
+}
+
+/**
+ * Classifies by the `Status` prefix, which NZBGet derives from all of the
+ * individual par/unpack/url/delete/mark fields.
+ *
+ * @link https://nzbget.com/documentation/api/history/
+ * @link https://github.com/nzbgetcom/nzbget/blob/develop/daemon/queue/DownloadInfo.cpp (`NzbInfo::MakeTextStatus`)
+ */
 function classifyNzbgetHistoryItem(item: NzbGetHistoryItem): NormalizedHistoryState {
-  let classification: NormalizedHistoryState = {
-    state: UsenetJobState.completed,
-    stateMessage: UsenetStateMessage.completed,
-    succeeded: true,
-  };
+  const [kind] = item.Status.split('/');
 
-  if (item.DeleteStatus === 'MANUAL') {
-    classification = failedHistoryState(
-      item.MarkStatus === 'BAD' ? UsenetJobState.error : UsenetJobState.deleted,
-    );
+  switch (kind) {
+    case 'SUCCESS': {
+      return {
+        state: UsenetJobState.completed,
+        stateMessage: UsenetStateMessage.completed,
+        succeeded: true,
+      };
+    }
+    case 'WARNING': {
+      return {
+        state: UsenetJobState.warning,
+        stateMessage: UsenetStateMessage.warning,
+        succeeded: false,
+      };
+    }
+    case 'DELETED': {
+      return {
+        state: UsenetJobState.deleted,
+        stateMessage: UsenetStateMessage.deleted,
+        succeeded: false,
+      };
+    }
+    case 'FAILURE': {
+      return {
+        state: UsenetJobState.error,
+        stateMessage: UsenetStateMessage.failed,
+        succeeded: false,
+      };
+    }
+    default: {
+      return {
+        state: UsenetJobState.unknown,
+        stateMessage: UsenetStateMessage.unknown,
+        succeeded: false,
+      };
+    }
   }
-
-  if (!SUCCESS_STATUSES.has(item.ParStatus)) {
-    classification = failedHistoryState(UsenetJobState.error);
-  }
-
-  if (item.UnpackStatus === 'SPACE') {
-    classification = failedHistoryState(UsenetJobState.warning);
-  } else if (!SUCCESS_STATUSES.has(item.UnpackStatus)) {
-    classification = failedHistoryState(UsenetJobState.error);
-  }
-
-  if (!SUCCESS_STATUSES.has(item.MoveStatus)) {
-    classification = failedHistoryState(UsenetJobState.warning);
-  }
-
-  if (!SUCCESS_STATUSES.has(item.ScriptStatus)) {
-    classification = failedHistoryState(UsenetJobState.error);
-  }
-
-  if (
-    item.DeleteStatus &&
-    !SUCCESS_STATUSES.has(item.DeleteStatus) &&
-    item.DeleteStatus !== 'MANUAL'
-  ) {
-    classification = failedHistoryState(
-      DELETE_FAILED_STATUSES.has(item.DeleteStatus) ? UsenetJobState.error : UsenetJobState.warning,
-    );
-  }
-
-  return classification;
 }
 
-export function normalizeNzbgetStatus(status: NzbGetStatus): NormalizedUsenetStatus {
+/**
+ * Maps the listgroups `Status` field.
+ *
+ * @link https://nzbget.com/documentation/api/listgroups/
+ * @link https://github.com/nzbgetcom/nzbget/blob/develop/daemon/remote/XmlRpc.cpp (`ListGroupsXmlCommand::DetectStatus`)
+ */
+function classifyNzbgetQueueItem(
+  item: NzbGetQueueItem,
+  globalStatus: NzbGetStatus,
+): NormalizedJobState {
+  switch (item.Status) {
+    case 'QUEUED': {
+      return globalStatus.DownloadPaused
+        ? { state: UsenetJobState.paused, stateMessage: UsenetStateMessage.paused }
+        : { state: UsenetJobState.queued, stateMessage: UsenetStateMessage.queued };
+    }
+    case 'PAUSED': {
+      return { state: UsenetJobState.paused, stateMessage: UsenetStateMessage.paused };
+    }
+    case 'DOWNLOADING': {
+      // NZBGet checks ActiveDownloads before paused sizes, so a paused group
+      // stays DOWNLOADING while in-flight articles drain (or keep retrying).
+      const pausedSize = combineInt64(item.PausedSizeHi, item.PausedSizeLo);
+      return pausedSize > 0 &&
+        pausedSize === combineInt64(item.RemainingSizeHi, item.RemainingSizeLo)
+        ? { state: UsenetJobState.paused, stateMessage: UsenetStateMessage.paused }
+        : { state: UsenetJobState.downloading, stateMessage: UsenetStateMessage.downloading };
+    }
+    case 'FETCHING': {
+      return { state: UsenetJobState.grabbing, stateMessage: UsenetStateMessage.grabbing };
+    }
+    case 'PP_QUEUED':
+    case 'QS_QUEUED':
+    case 'QS_EXECUTING':
+    case 'LOADING_PARS':
+    case 'VERIFYING_SOURCES':
+    case 'REPAIRING':
+    case 'VERIFYING_REPAIRED':
+    case 'RENAMING':
+    case 'UNPACKING':
+    case 'MOVING':
+    case 'POST_UNPACK_RENAMING':
+    case 'EXECUTING_SCRIPT':
+    case 'PP_FINISHED':
+    case 'POST_DOWNLOAD_RENAMING': {
+      return {
+        state: UsenetJobState.postProcessing,
+        stateMessage: UsenetStateMessage.postProcessing,
+      };
+    }
+    default: {
+      return { state: UsenetJobState.unknown, stateMessage: UsenetStateMessage.unknown };
+    }
+  }
+}
+
+export function normalizeNzbgetStatus(
+  status: NzbGetStatus,
+  settings?: Partial<NzbGetSettings>,
+): NormalizedUsenetStatus {
   return {
     isDownloadPaused: status.DownloadPaused,
-    speedBytesPerSecond: status.DownloadRate,
+    isPostProcessingPaused: status.PostPaused,
+    speedBytesPerSecond: getNzbgetDownloadRate(status),
     speedLimitBytesPerSecond: status.DownloadLimit,
     totalRemainingSize: combineInt64(status.RemainingSizeHi, status.RemainingSizeLo),
     totalDownloadedSize: combineInt64(status.DownloadedSizeHi, status.DownloadedSizeLo),
+    completeDir: settings?.DestDir ? resolveMainDir(settings.DestDir, settings) : undefined,
     raw: status,
   };
 }
@@ -202,37 +312,33 @@ export function normalizeNzbgetJob(
   const remainingSize = combineInt64(item.RemainingSizeHi, item.RemainingSizeLo);
   const pausedSize = combineInt64(item.PausedSizeHi, item.PausedSizeLo);
   const activeId = getNzbgetQueueItemId(item);
-  const averagePriority = Math.round((item.MinPriority + item.MaxPriority) / 2);
-  const progress = totalSize === 0 ? 0 : ((totalSize - remainingSize) / totalSize) * 100;
-
-  let state = UsenetJobState.downloading;
-  let stateMessage = UsenetStateMessage.downloading;
-
-  if (globalStatus.DownloadPaused || (remainingSize === pausedSize && remainingSize !== 0)) {
-    state = UsenetJobState.paused;
-    stateMessage = UsenetStateMessage.paused;
-  } else if (remainingSize === 0) {
-    state = UsenetJobState.postProcessing;
-    stateMessage = UsenetStateMessage.postProcessing;
-  } else if (item.ActiveDownloads === 0) {
-    state = UsenetJobState.queued;
-    stateMessage = UsenetStateMessage.queued;
-  }
+  const { state, stateMessage } = classifyNzbgetQueueItem(item, globalStatus);
+  const downloadRate = getNzbgetDownloadRate(globalStatus);
+  // Paused files (usually extra par2 files) are skipped, so leave them out
+  // like the web UI does, unless the whole group is paused.
+  // https://github.com/nzbgetcom/nzbget/blob/develop/webui/downloads.js (`buildProgress`)
+  const isGroupPaused = state === UsenetJobState.paused && pausedSize === remainingSize;
+  const skippedSize = isGroupPaused ? 0 : pausedSize;
+  const wantedSize = totalSize - skippedSize;
+  const wantedRemaining = remainingSize - skippedSize;
+  const progress = wantedSize <= 0 ? 0 : (wantedSize - wantedRemaining) / wantedSize;
+  const isCompleted = state === UsenetJobState.postProcessing;
 
   return {
     id: activeId,
     name: item.NZBName,
     progress,
-    isCompleted: remainingSize === 0,
+    isCompleted,
     category: item.Category,
-    priority: nzbgetPriorityToNormalized(averagePriority),
+    priority: nzbgetPriorityToNormalized(item.MaxPriority),
     state,
     stateMessage,
-    downloadSpeed: state === UsenetJobState.downloading ? globalStatus.DownloadRate : 0,
-    eta:
-      state === UsenetJobState.downloading && globalStatus.DownloadRate > 0
-        ? Math.ceil(remainingSize / globalStatus.DownloadRate)
-        : 0,
+    downloadSpeed: state === UsenetJobState.downloading ? downloadRate : 0,
+    eta: isCompleted
+      ? 0
+      : state === UsenetJobState.downloading && downloadRate > 0
+        ? Math.ceil(wantedRemaining / downloadRate)
+        : -1,
     queuePosition,
     totalSize,
     remainingSize,
@@ -250,7 +356,7 @@ export function normalizeNzbgetHistoryItem(item: NzbGetHistoryItem): NormalizedU
   return {
     id: activeId,
     name: item.Name,
-    progress: succeeded ? 100 : 0,
+    progress: succeeded ? 1 : 0,
     isCompleted: succeeded,
     category: item.Category,
     priority: undefined,
@@ -274,6 +380,10 @@ export function configItemsToMap(items: NzbGetConfigItem[]): NzbGetSettings {
   return Object.fromEntries(items.map(item => [item.Name, item.Value])) as NzbGetSettings;
 }
 
+function resolveMainDir(path: string, configMap: Partial<NzbGetSettings>): string {
+  return path.replace('${MainDir}', configMap.MainDir ?? '');
+}
+
 export function deriveCategories(configMap: NzbGetSettings): Category[] {
   const categories: Category[] = [];
 
@@ -285,8 +395,7 @@ export function deriveCategories(configMap: NzbGetSettings): Category[] {
 
     let path = configMap[`Category${index}.DestDir`];
     if (!path) {
-      const mainDir = configMap.MainDir ?? '';
-      path = (configMap.DestDir ?? '').replace('${MainDir}', mainDir);
+      path = resolveMainDir(configMap.DestDir ?? '', configMap);
       if ((configMap.AppendCategoryDir ?? 'yes') === 'yes') {
         path = path ? `${path.replace(/\/$/, '')}/${name}` : name;
       }

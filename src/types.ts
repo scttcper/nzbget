@@ -19,17 +19,18 @@ export interface JsonRpcResponse<T> {
 }
 
 /**
- * One config entry from {@link https://nzbget-ng.github.io/api/config | config}.
+ * Post-processing parameter attached to a queue or history item, e.g.
+ * `{ Name: '*Unpack:', Value: 'yes' }`.
  */
 export interface NzbGetParameter {
   /** Name of the parameter. */
   Name: string;
-  /** Raw parameter value. */
-  Value: unknown;
+  /** Parameter value. */
+  Value: string;
 }
 
 /**
- * Response from {@link https://nzbget-ng.github.io/api/status | status}.
+ * News server entry in {@link https://nzbget.com/documentation/api/status/ | status}.
  */
 export interface NzbGetNewsServerStatus {
   /** Server number in the configuration file. */
@@ -60,6 +61,13 @@ export interface NzbGetVolumeSlot {
   SizeMB: number;
 }
 
+export interface NzbGetArticleSlot {
+  /** Failed articles. */
+  Failed: number;
+  /** Successfully downloaded articles. */
+  Success: number;
+}
+
 export interface NzbGetServerVolume {
   /** ID of the news server. */
   ServerID: number;
@@ -79,6 +87,8 @@ export interface NzbGetServerVolume {
   CustomSizeMB: number;
   /** Time of the last custom counter reset. */
   CustomTime: number;
+  /** Time of the last full counter reset. */
+  CountersResetTime?: number;
   /** Per-second volume slots. */
   BytesPerSeconds: NzbGetVolumeSlot[];
   /** Per-minute volume slots. */
@@ -87,6 +97,8 @@ export interface NzbGetServerVolume {
   BytesPerHours: NzbGetVolumeSlot[];
   /** Per-day volume slots. */
   BytesPerDays: NzbGetVolumeSlot[];
+  /** Per-day article counters. */
+  ArticlesPerDays?: NzbGetArticleSlot[];
   /** Current second slot index. */
   SecSlot: number;
   /** Current minute slot index. */
@@ -124,10 +136,38 @@ export interface NzbGetStatus {
   ArticleCacheHi?: number;
   /** Current article-cache usage in megabytes. */
   ArticleCacheMB?: number;
-  /** Current download speed in bytes per second. */
+  /** Downloaded this month (since `QuotaStartDay`), low 32 bits. */
+  MonthSizeLo?: number;
+  /** Downloaded this month (since `QuotaStartDay`), high 32 bits. */
+  MonthSizeHi?: number;
+  /** Downloaded this month (since `QuotaStartDay`) in megabytes. */
+  MonthSizeMB?: number;
+  /** Downloaded today, low 32 bits. */
+  DaySizeLo?: number;
+  /** Downloaded today, high 32 bits. */
+  DaySizeHi?: number;
+  /** Downloaded today in megabytes. */
+  DaySizeMB?: number;
+  /**
+   * Current download speed in bytes per second.
+   *
+   * @deprecated Since v24.2, int32 and overflows above 2 GB/s. Use `DownloadRateLo`/`DownloadRateHi`.
+   */
   DownloadRate: number;
-  /** Average download speed since server start in bytes per second. */
+  /** `v24.2` Current download speed in bytes per second, low 32 bits. */
+  DownloadRateLo?: number;
+  /** `v24.2` Current download speed in bytes per second, high 32 bits. */
+  DownloadRateHi?: number;
+  /**
+   * Average download speed since server start in bytes per second.
+   *
+   * @deprecated Since v24.2. Use `AverageDownloadRateLo`/`AverageDownloadRateHi`.
+   */
   AverageDownloadRate: number;
+  /** `v24.2` Average download speed since server start, low 32 bits. */
+  AverageDownloadRateLo?: number;
+  /** `v24.2` Average download speed since server start, high 32 bits. */
+  AverageDownloadRateHi?: number;
   /** Current download limit in bytes per second. */
   DownloadLimit: number;
   /** Number of running threads. */
@@ -138,6 +178,8 @@ export interface NzbGetStatus {
   ParJobCount?: number;
   /** Number of URLs in URL queue. */
   UrlCount?: number;
+  /** Number of queued or running queue-scripts. */
+  QueueScriptCount?: number;
   /** Server uptime in seconds. */
   UpTimeSec?: number;
   /** Server download time in seconds. */
@@ -160,19 +202,39 @@ export interface NzbGetStatus {
   ResumeTime?: number;
   /** True if any RSS feed is currently active. */
   FeedActive?: boolean;
-  /** Free disk space, low 32 bits. */
+  /** True when the monthly or daily download quota is reached. */
+  QuotaReached?: boolean;
+  /** Free disk space on the `DestDir` drive, low 32 bits. */
   FreeDiskSpaceLo?: number;
-  /** Free disk space, high 32 bits. */
+  /** Free disk space on the `DestDir` drive, high 32 bits. */
   FreeDiskSpaceHi?: number;
-  /** Free disk space in megabytes. */
+  /** Free disk space on the `DestDir` drive in megabytes. */
   FreeDiskSpaceMB?: number;
+  /** Total disk space on the `DestDir` drive, low 32 bits. */
+  TotalDiskSpaceLo?: number;
+  /** Total disk space on the `DestDir` drive, high 32 bits. */
+  TotalDiskSpaceHi?: number;
+  /** Total disk space on the `DestDir` drive in megabytes. */
+  TotalDiskSpaceMB?: number;
+  /** Free disk space on the `InterDir` drive, low 32 bits. */
+  FreeInterDiskSpaceLo?: number;
+  /** Free disk space on the `InterDir` drive, high 32 bits. */
+  FreeInterDiskSpaceHi?: number;
+  /** Free disk space on the `InterDir` drive in megabytes. */
+  FreeInterDiskSpaceMB?: number;
+  /** Total disk space on the `InterDir` drive, low 32 bits. */
+  TotalInterDiskSpaceLo?: number;
+  /** Total disk space on the `InterDir` drive, high 32 bits. */
+  TotalInterDiskSpaceHi?: number;
+  /** Total disk space on the `InterDir` drive in megabytes. */
+  TotalInterDiskSpaceMB?: number;
   /** Per-server enabled/disabled state. */
   NewsServers?: NzbGetNewsServerStatus[];
   [key: string]: unknown;
 }
 
 /**
- * Queue item returned by {@link https://nzbget-ng.github.io/api/listgroups | listgroups}.
+ * Queue item returned by {@link https://nzbget.com/documentation/api/listgroups/ | listgroups}.
  */
 export interface NzbGetQueueItem {
   /** ID of the NZB entry. */
@@ -225,9 +287,9 @@ export interface NzbGetQueueItem {
   MinPostTime?: number;
   /** Newest article timestamp in Unix seconds. */
   MaxPostTime?: number;
-  /** Lowest file priority in the group. */
+  /** @deprecated Since v13. Use `MaxPriority`. */
   MinPriority: number;
-  /** Highest file priority in the group. */
+  /** Priority of the group. "Max" in the name has historical reasons. */
   MaxPriority: number;
   /** Number of files in the group currently downloading. */
   ActiveDownloads: number;
@@ -259,10 +321,14 @@ export interface NzbGetQueueItem {
   DupeScore?: number;
   /** Duplicate mode. */
   DupeMode?: NzbGetDupeMode;
-  /** Deprecated deleted flag. */
+  /** @deprecated Since v12. Use `DeleteStatus`. */
   Deleted?: boolean;
   /** Result of par-check or repair during post-processing. */
   ParStatus?: NzbGetParStatus;
+  /** Duplicate par-scan repair status during post-processing. */
+  ExParStatus?: NzbGetExParStatus;
+  /** Result of the URL fetch for URL items. `UNKNOWN` while fetching. */
+  UrlStatus?: NzbGetUrlStatus;
   /** Result of unpacking during post-processing. */
   UnpackStatus?: NzbGetUnpackStatus;
   /** Result of moving output during post-processing. */
@@ -273,26 +339,46 @@ export interface NzbGetQueueItem {
   DeleteStatus?: NzbGetDeleteStatus;
   /** Final mark assigned during post-processing. */
   MarkStatus?: NzbGetMarkStatus;
+  /** Per-script results during post-processing. */
+  ScriptStatuses?: NzbGetScriptStatusEntry[];
+  /** Per-server article statistics. */
+  ServerStats?: NzbGetServerStat[];
   /** Short description of the current post-processing action. */
   PostInfoText?: string;
-  /** Current post-processing stage completion in permille. */
+  /**
+   * Current post-processing stage completion in permille.
+   *
+   * Only valid while the group is being post-processed. Otherwise NZBGet
+   * prints a junk value (e.g. `-980469752`) due to a format-string mismatch in
+   * {@link https://github.com/nzbgetcom/nzbget/blob/develop/daemon/remote/XmlRpc.cpp | AppendPostInfoFields}.
+   */
   PostStageProgress?: number;
   /** Total seconds spent in post-processing. */
   PostTotalTimeSec?: number;
   /** Seconds spent in the current post-processing stage. */
   PostStageTimeSec?: number;
+  /** Par-check time in seconds. */
+  ParTimeSec?: number;
+  /** Repair time in seconds. */
+  RepairTimeSec?: number;
+  /** Unpack time in seconds. */
+  UnpackTimeSec?: number;
+  /** Extra par blocks received from or donated to duplicates. */
+  ExtraParBlocks?: number;
+  /** @deprecated Since v15. Always empty, use `loadlog`. */
+  Log?: NzbGetLogEntry[];
   /** Per-item parameters attached to the queue entry. */
   Parameters: NzbGetParameter[];
   [key: string]: unknown;
 }
 
 /**
- * History item returned by {@link https://nzbget-ng.github.io/api/history | history}.
+ * History item returned by {@link https://nzbget.com/documentation/api/history/ | history}.
  */
 export interface NzbGetHistoryItem {
   /** ID of the NZB entry. */
-  NZBID?: number;
-  /** Deprecated alias for `NZBID`. */
+  NZBID: number;
+  /** @deprecated Since v13. Use `NZBID`. */
   ID: number;
   /** Kind of history item. */
   Kind?: NzbGetHistoryKind;
@@ -300,6 +386,12 @@ export interface NzbGetHistoryItem {
   NZBFilename?: string;
   /** Friendly item name without path or extension. */
   Name: string;
+  /** Same as `Name`. */
+  NZBName?: string;
+  /** @deprecated Since v12. Use `NZBName`. */
+  NZBNicename?: string;
+  /** True if the item has completed files that can be retried (`HistoryRetryFailed`). */
+  RetryData?: boolean;
   /** URL for URL history items. */
   URL?: string;
   /** Assigned category, or an empty string when none is set. */
@@ -328,6 +420,8 @@ export interface NzbGetHistoryItem {
   FailedArticles?: number;
   /** Final health of the group, in permille. */
   Health?: number;
+  /** Critical health threshold, in permille. */
+  CriticalHealth?: number;
   /** Downloaded size, low 32 bits. */
   DownloadedSizeLo?: number;
   /** Downloaded size, high 32 bits. */
@@ -352,8 +446,8 @@ export interface NzbGetHistoryItem {
   DupeScore?: number;
   /** Duplicate mode. */
   DupeMode?: NzbGetDupeMode;
-  /** Total status of the download. */
-  Status?: NzbGetHistoryStatus;
+  /** Total status of the download, e.g. `SUCCESS/ALL` or `FAILURE/FETCH`. */
+  Status: NzbGetHistoryStatus;
   /** Result of par-check or repair. */
   ParStatus: NzbGetParStatus;
   /** Duplicate par-scan repair status. */
@@ -366,6 +460,8 @@ export interface NzbGetHistoryItem {
   MoveStatus: NzbGetMoveStatus;
   /** Result of post-processing scripts. */
   ScriptStatus: NzbGetScriptStatus;
+  /** Per-script results. */
+  ScriptStatuses?: NzbGetScriptStatusEntry[];
   /** Result of delete or cleanup handling. */
   DeleteStatus: NzbGetDeleteStatus;
   /** Final mark assigned to the item. */
@@ -376,13 +472,19 @@ export interface NzbGetHistoryItem {
   FinalDir: string;
   /** Extra par blocks received from or donated to duplicates. */
   ExtraParBlocks?: number;
+  /** @deprecated Since v12. Use `DeleteStatus`. */
+  Deleted?: boolean;
+  /** Per-server article statistics. */
+  ServerStats?: NzbGetServerStat[];
+  /** @deprecated Since v13. Always empty. */
+  Log?: NzbGetLogEntry[];
   /** Per-item parameters attached to the history entry. */
   Parameters: NzbGetParameter[];
   [key: string]: unknown;
 }
 
 /**
- * Config item returned by {@link https://nzbget-ng.github.io/api/config | config}.
+ * Config item returned by {@link https://nzbget.com/documentation/api/config/ | config}.
  */
 export interface NzbGetConfigItem {
   /** Config option name. */
@@ -408,7 +510,7 @@ export type NzbGetUnpackStatus = NzbGetLooseEnum<
 >;
 
 export type NzbGetUrlStatus = NzbGetLooseEnum<
-  'NONE' | 'SUCCESS' | 'FAILURE' | 'SCAN_SKIPPED' | 'SCAN_FAILURE'
+  'NONE' | 'UNKNOWN' | 'SUCCESS' | 'FAILURE' | 'SCAN_SKIPPED' | 'SCAN_FAILURE'
 >;
 
 export type NzbGetScriptStatus = NzbGetLooseEnum<'NONE' | 'FAILURE' | 'SUCCESS'>;
@@ -448,6 +550,7 @@ export type NzbGetHistoryStatus = NzbGetLooseEnum<
   | 'FAILURE/FETCH'
   | 'SUCCESS/HIDDEN'
   | 'FAILURE/HIDDEN'
+  | 'FAILURE/INTERNAL_ERROR'
 >;
 
 export type NzbGetQueueKind = NzbGetLooseEnum<'NZB' | 'URL'>;
@@ -465,9 +568,29 @@ export type NzbGetQueueStatus = NzbGetLooseEnum<
   | 'RENAMING'
   | 'UNPACKING'
   | 'MOVING'
+  | 'POST_UNPACK_RENAMING'
   | 'EXECUTING_SCRIPT'
   | 'PP_FINISHED'
+  | 'POST_DOWNLOAD_RENAMING'
+  | 'QS_QUEUED'
+  | 'QS_EXECUTING'
 >;
+
+export interface NzbGetScriptStatusEntry {
+  /** Script name. */
+  Name: string;
+  /** Result of the script. */
+  Status: NzbGetScriptStatus;
+}
+
+export interface NzbGetServerStat {
+  /** Server number from the config file. */
+  ServerID: number;
+  /** Number of successfully downloaded articles. */
+  SuccessArticles: number;
+  /** Number of failed articles. */
+  FailedArticles: number;
+}
 
 type NzbGetServerSettingKey =
   | `Server${number}.Active`
@@ -584,6 +707,8 @@ type NzbGetSettingsKnownKeys = {
   WriteBuffer: string;
   NzbDirInterval: string;
   NzbDirFileAge: string;
+  NzbDirArchiveScan: string;
+  NzbDirArchiveAction: string;
   DiskSpace: string;
   CrashTrace: string;
   CrashDump: string;
@@ -618,7 +743,7 @@ type NzbGetSettingsKnownKeys = {
 };
 
 /**
- * Settings map returned by {@link https://nzbget-ng.github.io/api/config | config}.
+ * Settings map returned by {@link https://nzbget.com/documentation/api/config/ | config}.
  *
  * NZBGet exposes a broad string-to-string config object. This type makes the
  * common built-in keys explicit while preserving support for custom or
@@ -631,7 +756,7 @@ export type NzbGetSettings = Record<string, string> &
 
 /**
  * Template entry returned by
- * {@link https://nzbget-ng.github.io/api/configtemplates | configtemplates}.
+ * {@link https://nzbget.com/documentation/api/configtemplates/ | configtemplates}.
  */
 export interface NzbGetConfigTemplate {
   /**
@@ -655,7 +780,7 @@ export interface NzbGetConfigTemplate {
 }
 
 /**
- * File entry returned by {@link https://nzbget-ng.github.io/api/listfiles | listfiles}.
+ * File entry returned by {@link https://nzbget.com/documentation/api/listfiles/ | listfiles}.
  */
 export interface NzbGetFile {
   /** ID of the file. */
@@ -712,11 +837,35 @@ export interface NzbGetAddOptions {
   dupeScore?: number;
   /** Duplicate mode used by NZBGet duplicate handling. */
   dupeMode?: NzbGetDupeMode;
-  /** Post-processing parameters sent with the append call. */
-  ppParameters?: NzbGetParameter[];
+  /**
+   * `v25.3` Detect the category from NZB metadata. Only sent when set, since
+   * older versions read it as the start of `ppParameters` and drop them.
+   */
+  autoCategory?: boolean;
+  /**
+   * Post-processing parameters sent with the append call, e.g.
+   * `[{ Name: '*Unpack:', Value: 'no' }]`.
+   */
+  ppParameters?: Array<{ Name: string; Value: unknown }>;
 }
 
 export type NzbGetEditQueueCommand =
+  /**
+   * @deprecated removed from NZBGet, returns "Invalid action" on current versions
+   */
+  | 'FileSetPriority'
+  /**
+   * @deprecated removed from NZBGet, returns "Invalid action" on current versions
+   */
+  | 'PostMoveOffset'
+  /**
+   * @deprecated removed from NZBGet, returns "Invalid action" on current versions
+   */
+  | 'PostMoveTop'
+  /**
+   * @deprecated removed from NZBGet, returns "Invalid action" on current versions
+   */
+  | 'PostMoveBottom'
   | 'FileMoveOffset'
   | 'FileMoveTop'
   | 'FileMoveBottom'
@@ -725,15 +874,17 @@ export type NzbGetEditQueueCommand =
   | 'FileDelete'
   | 'FilePauseAllPars'
   | 'FilePauseExtraPars'
-  | 'FileSetPriority'
   | 'FileReorder'
   | 'FileSplit'
   | 'GroupMoveOffset'
   | 'GroupMoveTop'
   | 'GroupMoveBottom'
+  | 'GroupMoveBefore'
+  | 'GroupMoveAfter'
   | 'GroupPause'
   | 'GroupResume'
   | 'GroupDelete'
+  | 'GroupParkDelete'
   | 'GroupDupeDelete'
   | 'GroupFinalDelete'
   | 'GroupPauseAllPars'
@@ -748,15 +899,14 @@ export type NzbGetEditQueueCommand =
   | 'GroupSetDupeScore'
   | 'GroupSetDupeMode'
   | 'GroupSort'
-  | 'PostMoveOffset'
-  | 'PostMoveTop'
-  | 'PostMoveBottom'
+  | 'GroupSortFiles'
   | 'PostDelete'
   | 'HistoryDelete'
   | 'HistoryFinalDelete'
   | 'HistoryReturn'
   | 'HistoryProcess'
   | 'HistoryRedownload'
+  | 'HistoryRetryFailed'
   | 'HistorySetName'
   | 'HistorySetCategory'
   | 'HistorySetParameter'
@@ -777,6 +927,22 @@ export type NzbGetSortParam = NzbGetSortField | `${NzbGetSortField}${NzbGetSortD
 export type NzbGetParameterAssignment = `${string}=${string}`;
 
 export interface NzbGetEditQueueParameterMap {
+  /**
+   * @deprecated removed from NZBGet
+   */
+  FileSetPriority: number;
+  /**
+   * @deprecated removed from NZBGet
+   */
+  PostMoveOffset: number | `${number}`;
+  /**
+   * @deprecated removed from NZBGet
+   */
+  PostMoveTop: '';
+  /**
+   * @deprecated removed from NZBGet
+   */
+  PostMoveBottom: '';
   FileMoveOffset: number | `${number}`;
   FileMoveTop: '';
   FileMoveBottom: '';
@@ -785,15 +951,19 @@ export interface NzbGetEditQueueParameterMap {
   FileDelete: '';
   FilePauseAllPars: '';
   FilePauseExtraPars: '';
-  FileSetPriority: number;
   FileReorder: '';
   FileSplit: '';
   GroupMoveOffset: number | `${number}`;
   GroupMoveTop: '';
   GroupMoveBottom: '';
+  /** NZBID of the target group. */
+  GroupMoveBefore: number | `${number}`;
+  /** NZBID of the target group. */
+  GroupMoveAfter: number | `${number}`;
   GroupPause: '';
   GroupResume: '';
   GroupDelete: '';
+  GroupParkDelete: '';
   GroupDupeDelete: '';
   GroupFinalDelete: '';
   GroupPauseAllPars: '';
@@ -808,15 +978,14 @@ export interface NzbGetEditQueueParameterMap {
   GroupSetDupeScore: number | `${number}`;
   GroupSetDupeMode: NzbGetDupeMode;
   GroupSort: NzbGetSortParam;
-  PostMoveOffset: number | `${number}`;
-  PostMoveTop: '';
-  PostMoveBottom: '';
+  GroupSortFiles: '';
   PostDelete: '';
   HistoryDelete: '';
   HistoryFinalDelete: '';
   HistoryReturn: '';
   HistoryProcess: '';
   HistoryRedownload: '';
+  HistoryRetryFailed: '';
   HistorySetName: string;
   HistorySetCategory: string;
   HistorySetParameter: NzbGetParameterAssignment;
@@ -831,3 +1000,77 @@ export interface NzbGetEditQueueParameterMap {
 
 export type NzbGetEditQueueParameter<TCommand extends NzbGetEditQueueCommand> =
   NzbGetEditQueueParameterMap[TCommand];
+
+/**
+ * Response from {@link https://nzbget.com/documentation/api/sysinfo/ | sysinfo} (v24.2+).
+ */
+export interface NzbGetSysInfo {
+  OS: {
+    Name: string;
+    Version: string;
+  };
+  CPU: {
+    Model: string;
+    Arch: string;
+  };
+  Network: {
+    PublicIP: string;
+    PrivateIP: string;
+  };
+  Tools: Array<{
+    Name: string;
+    Version: string;
+    Path: string;
+  }>;
+  Libraries: Array<{
+    Name: string;
+    Version: string;
+  }>;
+}
+
+export type NzbGetHealthSeverity = NzbGetLooseEnum<'Ok' | 'Info' | 'Warning' | 'Error'>;
+
+export interface NzbGetHealthIssue {
+  Severity: NzbGetHealthSeverity;
+  Message: string;
+}
+
+export interface NzbGetHealthOption extends NzbGetHealthIssue {
+  /** Option name, e.g. `DestDir`. */
+  Name: string;
+}
+
+export interface NzbGetHealthAlert extends NzbGetHealthIssue {
+  Source: string;
+  Category: string;
+  Timestamp: number;
+}
+
+export interface NzbGetHealthSection {
+  /** Section name, e.g. `Paths` or `NewsServers`. */
+  Name: string;
+  Issues: NzbGetHealthIssue[];
+  Options: NzbGetHealthOption[];
+  /** Nested reports, e.g. one per news server or category. */
+  Subsections: Array<{
+    Name: string;
+    Options: NzbGetHealthOption[];
+  }>;
+}
+
+/**
+ * Response from {@link https://nzbget.com/documentation/api/systemhealth/ | systemhealth} (v26.0+).
+ *
+ * Typed from real 26.3 responses, which differ from the docs: there is no
+ * top-level `Status`, sections use `Issues`, and option entries are flat.
+ */
+export interface NzbGetSystemHealth {
+  Alerts: NzbGetHealthAlert[];
+  Sections: NzbGetHealthSection[];
+}
+
+/**
+ * Counter for {@link https://nzbget.com/documentation/api/resetservervolume/ | resetservervolume}:
+ * `''` resets everything, `'CUSTOM'` only the custom counter.
+ */
+export type NzbGetServerVolumeCounter = '' | 'CUSTOM';
