@@ -220,7 +220,10 @@ export class Nzbget implements UsenetClient {
     contentOrUrl: string,
     options: NzbGetAddOptions = {},
   ): Promise<number> {
-    const ppParameters = (options.ppParameters ?? []).flatMap(({ Name, Value }) => [Name, Value]);
+    const ppParameters = (options.ppParameters ?? []).flatMap(({ Name, Value }) => [
+      Name,
+      String(Value),
+    ]);
 
     return this.rpc<number>('append', [
       name,

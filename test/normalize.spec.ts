@@ -257,6 +257,10 @@ describe('deriveCategories and deriveScripts', () => {
 describe('lookup helpers', () => {
   it('types editQueue commands and parameters', () => {
     expectTypeOf<NzbGetEditQueueCommand>().toEqualTypeOf<
+      | 'FileSetPriority'
+      | 'PostMoveOffset'
+      | 'PostMoveTop'
+      | 'PostMoveBottom'
       | 'FileMoveOffset'
       | 'FileMoveTop'
       | 'FileMoveBottom'

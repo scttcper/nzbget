@@ -846,10 +846,26 @@ export interface NzbGetAddOptions {
    * Post-processing parameters sent with the append call, e.g.
    * `[{ Name: '*Unpack:', Value: 'no' }]`.
    */
-  ppParameters?: NzbGetParameter[];
+  ppParameters?: Array<{ Name: string; Value: unknown }>;
 }
 
 export type NzbGetEditQueueCommand =
+  /**
+   * @deprecated removed from NZBGet, returns "Invalid action" on current versions
+   */
+  | 'FileSetPriority'
+  /**
+   * @deprecated removed from NZBGet, returns "Invalid action" on current versions
+   */
+  | 'PostMoveOffset'
+  /**
+   * @deprecated removed from NZBGet, returns "Invalid action" on current versions
+   */
+  | 'PostMoveTop'
+  /**
+   * @deprecated removed from NZBGet, returns "Invalid action" on current versions
+   */
+  | 'PostMoveBottom'
   | 'FileMoveOffset'
   | 'FileMoveTop'
   | 'FileMoveBottom'
@@ -911,6 +927,22 @@ export type NzbGetSortParam = NzbGetSortField | `${NzbGetSortField}${NzbGetSortD
 export type NzbGetParameterAssignment = `${string}=${string}`;
 
 export interface NzbGetEditQueueParameterMap {
+  /**
+   * @deprecated removed from NZBGet
+   */
+  FileSetPriority: number;
+  /**
+   * @deprecated removed from NZBGet
+   */
+  PostMoveOffset: number | `${number}`;
+  /**
+   * @deprecated removed from NZBGet
+   */
+  PostMoveTop: '';
+  /**
+   * @deprecated removed from NZBGet
+   */
+  PostMoveBottom: '';
   FileMoveOffset: number | `${number}`;
   FileMoveTop: '';
   FileMoveBottom: '';

@@ -55,10 +55,11 @@ export function getNzbgetAverageDownloadRate(status: NzbGetStatus): number {
 }
 
 export function getNzbgetParameterValue(
-  parameters: NzbGetParameter[] | undefined,
+  parameters: Array<{ Name: string; Value: unknown }> | undefined,
   name: string,
 ): string | undefined {
-  return parameters?.find(parameter => parameter.Name === name)?.Value;
+  const value = parameters?.find(parameter => parameter.Name === name)?.Value;
+  return value === undefined ? undefined : String(value);
 }
 
 export function getNzbgetQueueItemId(item: NzbGetQueueItem): string {
