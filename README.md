@@ -25,7 +25,7 @@ Use the normalized methods by default. Drop to the native NZBGet methods only wh
 npm install @ctrl/nzbget
 ```
 
-Requires Node.js 22 or newer.
+Requires Node.js 24 or newer.
 
 ### Use
 
