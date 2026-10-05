@@ -321,22 +321,24 @@ export function normalizeNzbgetJob(
   const skippedSize = isGroupPaused ? 0 : pausedSize;
   const wantedSize = totalSize - skippedSize;
   const wantedRemaining = remainingSize - skippedSize;
-  const progress = wantedSize <= 0 ? 0 : ((wantedSize - wantedRemaining) / wantedSize) * 100;
+  const progress = wantedSize <= 0 ? 0 : (wantedSize - wantedRemaining) / wantedSize;
+  const isCompleted = state === UsenetJobState.postProcessing;
 
   return {
     id: activeId,
     name: item.NZBName,
     progress,
-    isCompleted: state === UsenetJobState.postProcessing,
+    isCompleted,
     category: item.Category,
     priority: nzbgetPriorityToNormalized(item.MaxPriority),
     state,
     stateMessage,
     downloadSpeed: state === UsenetJobState.downloading ? downloadRate : 0,
-    eta:
-      state === UsenetJobState.downloading && downloadRate > 0
+    eta: isCompleted
+      ? 0
+      : state === UsenetJobState.downloading && downloadRate > 0
         ? Math.ceil(wantedRemaining / downloadRate)
-        : 0,
+        : -1,
     queuePosition,
     totalSize,
     remainingSize,
@@ -354,7 +356,7 @@ export function normalizeNzbgetHistoryItem(item: NzbGetHistoryItem): NormalizedU
   return {
     id: activeId,
     name: item.Name,
-    progress: succeeded ? 100 : 0,
+    progress: succeeded ? 1 : 0,
     isCompleted: succeeded,
     category: item.Category,
     priority: undefined,

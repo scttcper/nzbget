@@ -76,7 +76,7 @@ describe('normalizeNzbgetJob', () => {
 
     expect(job.id).toBe('23');
     expect(job.category).toBe('movies');
-    expect(job.progress).toBe(50);
+    expect(job.progress).toBe(0.5);
     expect(job.stateMessage).toBe('Downloading');
     expect(job.downloadSpeed).toBe(1024);
     expect(job.isCompleted).toBe(false);
@@ -115,7 +115,7 @@ describe('normalizeNzbgetJob', () => {
       0,
     );
     expect(paused.state).toBe(UsenetJobState.paused);
-    expect(paused.progress).toBe(50);
+    expect(paused.progress).toBe(0.5);
 
     const draining = normalizeNzbgetJob({ ...queue[0]!, PausedSizeLo: 1024 }, status, 0);
     expect(draining.state).toBe(UsenetJobState.paused);
@@ -127,7 +127,7 @@ describe('normalizeNzbgetJob', () => {
       0,
     );
     expect(parsOnly.state).toBe(UsenetJobState.postProcessing);
-    expect(parsOnly.progress).toBe(100);
+    expect(parsOnly.progress).toBe(1);
 
     const queued = normalizeNzbgetJob(
       { ...queue[0]!, Status: 'QUEUED', ActiveDownloads: 0 },
@@ -148,7 +148,7 @@ describe('normalizeNzbgetJob', () => {
     // 2048 total, 1024 remaining of which 512 are paused extra pars
     const job = normalizeNzbgetJob({ ...queue[0]!, PausedSizeLo: 512 }, status, 0);
 
-    expect(job.progress).toBeCloseTo(66.67, 1);
+    expect(job.progress).toBeCloseTo(0.6667, 3);
     expect(job.eta).toBe(1);
     expect(job.remainingSize).toBe(1024);
     expect(job.pausedSize).toBe(512);
@@ -159,7 +159,7 @@ describe('normalizeNzbgetJob', () => {
       0,
     );
     expect(globallyPaused.state).toBe(UsenetJobState.paused);
-    expect(globallyPaused.progress).toBeCloseTo(66.67, 1);
+    expect(globallyPaused.progress).toBeCloseTo(0.6667, 3);
   });
 
   it('uses MaxPriority', () => {
