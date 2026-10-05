@@ -1,5 +1,6 @@
 [
   {
+    "NZBID": 41,
     "ID": 41,
     "Name": "completed.release",
     "Category": "movies",
@@ -14,9 +15,13 @@
     "MarkStatus": "GOOD",
     "FinalDir": "/downloads/complete/completed.release",
     "DestDir": "/downloads/complete",
-    "Parameters": []
+    "Parameters": [],
+    "Kind": "NZB",
+    "Status": "SUCCESS/ALL",
+    "UrlStatus": "NONE"
   },
   {
+    "NZBID": 42,
     "ID": 42,
     "Name": "failed.release",
     "Category": "movies",
@@ -30,6 +35,9 @@
     "MarkStatus": "BAD",
     "FinalDir": "",
     "DestDir": "/downloads/intermediate",
-    "Parameters": []
+    "Parameters": [],
+    "Kind": "NZB",
+    "Status": "FAILURE/BAD",
+    "UrlStatus": "NONE"
   }
 ]

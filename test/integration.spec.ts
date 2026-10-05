@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { UsenetPriority } from '@ctrl/shared-usenet';
+import { UsenetJobState, UsenetPostProcess, UsenetPriority } from '@ctrl/shared-usenet';
 import { describe, expect, it } from 'vitest';
 
 import { Nzbget } from '../src/index.js';
@@ -14,6 +14,16 @@ const integrationEnabled = Boolean(process.env.TEST_NZBGET_URL);
 const __dirname = new URL('.', import.meta.url).pathname;
 const fixturePath = path.join(__dirname, 'fixtures', 'sample.nzb');
 const sampleNzb = readFileSync(fixturePath);
+
+// NZBGet itself listens on 6789 inside the container and 404s right away,
+// while unreachable hosts get retried for minutes.
+const missingNzbUrl = 'http://127.0.0.1:6789/missing.nzb';
+
+/** NZBGet drops identical NZBs as `DELETED/COPY`, so give each test its own content. */
+function uniqueNzb(label: string): string {
+  const unique = `${label}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return sampleNzb.toString('utf8').replace('sample@test.invalid', `${unique}@test.invalid`);
+}
 
 async function sleep(milliseconds: number): Promise<void> {
   await new Promise(resolve => {
@@ -63,6 +73,35 @@ describe.skipIf(!integrationEnabled)('nzbget integration', () => {
     expect(status.DownloadLimit).toBeGreaterThanOrEqual(0);
     expect(status.RemainingSizeLo).toBeGreaterThanOrEqual(0);
     expect(status.RemainingSizeHi).toBeGreaterThanOrEqual(0);
+  });
+
+  it('loads 64-bit rate and disk fields from status', async () => {
+    const client = new Nzbget({ baseUrl, username, password });
+    const status = await client.status();
+
+    expect(status).toMatchObject({
+      DownloadRateLo: expect.any(Number),
+      DownloadRateHi: expect.any(Number),
+      AverageDownloadRateLo: expect.any(Number),
+      AverageDownloadRateHi: expect.any(Number),
+      MonthSizeLo: expect.any(Number),
+      DaySizeLo: expect.any(Number),
+      QuotaReached: expect.any(Boolean),
+      TotalDiskSpaceLo: expect.any(Number),
+      FreeInterDiskSpaceLo: expect.any(Number),
+      TotalInterDiskSpaceLo: expect.any(Number),
+      QueueScriptCount: expect.any(Number),
+    });
+  });
+
+  it('fills post-processing pause and complete dir in normalized status', async () => {
+    const client = new Nzbget({ baseUrl, username, password });
+    const [data, settings] = await Promise.all([client.getAllData(), client.getConfig()]);
+
+    expect(data.status).toMatchObject({
+      isPostProcessingPaused: expect.any(Boolean),
+      completeDir: settings.DestDir.replace('${MainDir}', settings.MainDir),
+    });
   });
 
   it('loads raw config values', async () => {
@@ -404,5 +443,185 @@ describe.skipIf(!integrationEnabled)('nzbget integration', () => {
     });
 
     expect(id).toBeTruthy();
+  });
+
+  it('round-trips pp-parameters and add options through listgroups', async () => {
+    const client = new Nzbget({ baseUrl, username, password });
+    const id = await client.addNzbFile(uniqueNzb('options'), {
+      name: 'options.nzb',
+      password: 'secret',
+      postProcess: UsenetPostProcess.none,
+      postProcessScript: 'Notify.py',
+      priority: UsenetPriority.paused,
+    });
+
+    try {
+      const job = await client.getQueueJob(id);
+      expect(job.state).toBe(UsenetJobState.paused);
+      expect((job.raw as { Status: string }).Status).toBe('PAUSED');
+      expect((job.raw as { Parameters: unknown }).Parameters).toEqual([
+        { Name: '*Unpack:', Value: 'no' },
+        { Name: '*Unpack:Password', Value: 'secret' },
+        { Name: 'Notify.py:', Value: 'yes' },
+      ]);
+
+      const droneId = await client.append(
+        'drone.nzb',
+        Buffer.from(uniqueNzb('drone')).toString('base64'),
+        {
+          addPaused: true,
+          ppParameters: [{ Name: 'drone', Value: 'drone-roundtrip' }],
+        },
+      );
+      try {
+        const groups = await client.listGroups();
+        expect(groups.find(group => group.NZBID === droneId)?.Parameters).toContainEqual({
+          Name: 'drone',
+          Value: 'drone-roundtrip',
+        });
+        await expect(client.getQueueJob('drone-roundtrip')).resolves.toMatchObject({
+          id: 'drone-roundtrip',
+        });
+      } finally {
+        await client.editQueue('GroupFinalDelete', '', droneId);
+      }
+    } finally {
+      await client.removeJob(id, true);
+    }
+  });
+
+  it('accepts autoCategory before pp-parameters', async () => {
+    const client = new Nzbget({ baseUrl, username, password });
+    const id = await client.append('auto.nzb', Buffer.from(uniqueNzb('auto')).toString('base64'), {
+      addPaused: true,
+      autoCategory: true,
+      ppParameters: [{ Name: 'drone', Value: 'drone-auto' }],
+    });
+
+    try {
+      const groups = await client.listGroups();
+      expect(groups.find(group => group.NZBID === id)?.Parameters).toContainEqual({
+        Name: 'drone',
+        Value: 'drone-auto',
+      });
+    } finally {
+      await client.editQueue('GroupFinalDelete', '', id);
+    }
+  });
+
+  it('returns the history item when a duplicate skips the queue', async () => {
+    const client = new Nzbget({ baseUrl, username, password });
+    const nzb = uniqueNzb('dupe');
+    const original = await client.normalizedAddNzb({ file: nzb }, { startPaused: true });
+    expect(original.state).toBe(UsenetJobState.paused);
+
+    const duplicate = await client.normalizedAddNzb({ file: nzb }, { startPaused: true });
+    expect(duplicate).toMatchObject({
+      state: UsenetJobState.deleted,
+      raw: { Status: 'DELETED/COPY' },
+    });
+
+    await expect(client.removeJob(original.id, true)).resolves.toBe(true);
+    await expect(client.findJob(original.id)).resolves.toBeNull();
+    await expect(client.removeJob(duplicate.id)).resolves.toBe(true);
+    await expect(client.findJob(duplicate.id)).resolves.toBeNull();
+  });
+
+  it('normalizes a failed url fetch as an error', async () => {
+    const client = new Nzbget({ baseUrl, username, password });
+    const id = await client.addNzbUrl(missingNzbUrl);
+
+    const historyJob = await waitForHistoryJob(client, id);
+    expect(historyJob).toMatchObject({
+      id,
+      state: UsenetJobState.error,
+      succeeded: false,
+      isCompleted: false,
+      raw: { Kind: 'URL', Status: 'FAILURE/FETCH', UrlStatus: 'FAILURE' },
+    });
+
+    await expect(client.removeJob(id, true)).resolves.toBe(true);
+    await expect(client.findJob(id)).resolves.toBeNull();
+  });
+
+  it('moves groups before and after each other', async () => {
+    const client = new Nzbget({ baseUrl, username, password });
+    const first = await client.addNzbFile(uniqueNzb('move-a'), { startPaused: true });
+    const second = await client.addNzbFile(uniqueNzb('move-b'), { startPaused: true });
+    const position = async (id: string) => (await client.getQueueJob(id)).queuePosition;
+
+    try {
+      await expect(client.editQueue('GroupMoveBefore', Number(first), second)).resolves.toBe(true);
+      expect(await position(second)).toBe((await position(first)) - 1);
+
+      await expect(client.editQueue('GroupMoveAfter', Number(first), second)).resolves.toBe(true);
+      expect(await position(second)).toBe((await position(first)) + 1);
+
+      await expect(client.editQueue('GroupSortFiles', '', first)).resolves.toBe(true);
+    } finally {
+      await client.editQueue('GroupFinalDelete', '', [first, second]);
+    }
+  });
+
+  it('rejects editqueue commands removed upstream', async () => {
+    const client = new Nzbget({ baseUrl, username, password });
+    const editQueue = client.editQueue.bind(client) as (
+      command: string,
+      parameter: string,
+      ids: number[],
+    ) => Promise<boolean>;
+
+    for (const command of ['FileSetPriority', 'PostMoveOffset', 'PostMoveTop', 'PostMoveBottom']) {
+      await expect(editQueue(command, '', [1])).rejects.toThrow('Invalid action');
+    }
+  });
+
+  it('loads sysinfo and systemhealth', async () => {
+    const client = new Nzbget({ baseUrl, username, password });
+
+    await expect(client.sysInfo()).resolves.toMatchObject({
+      OS: { Name: expect.any(String), Version: expect.any(String) },
+      CPU: { Arch: expect.any(String) },
+      Tools: expect.any(Array),
+      Libraries: expect.any(Array),
+    });
+
+    const health = await client.systemHealth();
+    expect(health.Alerts).toEqual(expect.any(Array));
+    expect(health.Sections).toContainEqual(
+      expect.objectContaining({
+        Name: 'Paths',
+        Issues: expect.any(Array),
+        Options: expect.any(Array),
+        Subsections: expect.any(Array),
+      }),
+    );
+  });
+
+  it('clears the log', async () => {
+    const client = new Nzbget({ baseUrl, username, password });
+    const marker = `clear-log-${Date.now()}`;
+
+    await client.writeLog('INFO', marker);
+    expect((await client.log(0, 1000)).some(entry => entry.Text === marker)).toBe(true);
+
+    await expect(client.clearLog()).resolves.toBe(true);
+    expect((await client.log(0, 1000)).some(entry => entry.Text === marker)).toBe(false);
+  });
+
+  it('resets server volume counters', async () => {
+    const client = new Nzbget({ baseUrl, username, password });
+
+    await expect(client.resetServerVolume(-1, 'CUSTOM')).resolves.toBe(true);
+    await expect(client.resetServerVolume(0)).resolves.toBe(true);
+  });
+
+  it('loads and saves the config file', async () => {
+    const client = new Nzbget({ baseUrl, username, password });
+    const config = await client.loadConfig();
+
+    expect(config).toContainEqual({ Name: 'ControlPort', Value: '6789' });
+    await expect(client.saveConfig(config)).resolves.toBe(true);
+    await expect(client.loadConfig()).resolves.toEqual(config);
   });
 });

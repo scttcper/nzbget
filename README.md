@@ -74,7 +74,7 @@ async function main() {
 ### API
 
 Docs: https://nzbget.ep.workers.dev  
-NZBGet API Docs: https://nzbget.net/api/
+NZBGet API Docs: https://nzbget.com/documentation/api/
 
 ### Normalized Methods
 
@@ -109,7 +109,11 @@ The normalized add option names are `category`, `priority`, `postProcess`, `post
 
 ##### `normalizedAddNzb(...)`
 
-Add an NZB from either a URL or file content and return the created normalized queue item. This is the higher-level add helper when you want the normalized job back immediately.
+Add an NZB from either a URL or file content and return the created normalized queue item. This is the higher-level add helper when you want the normalized job back immediately. If NZBGet sends the job straight to history (e.g. a duplicate marked `DELETED/COPY`), the history item is returned instead.
+
+##### `removeJob(id, removeData?)`
+
+Deletes a queue job (`GroupDelete` / `GroupFinalDelete`) or, if the id is in history, a history item (`HistoryDelete` / `HistoryFinalDelete`).
 
 ##### Normalized state labels
 
@@ -122,23 +126,31 @@ NZBGet-specific methods are still available when you need the raw JSON-RPC surfa
 
 Connection and discovery:
 
-- `getVersion()` - wraps [`version`](https://nzbget-ng.github.io/api/version)
-- `status()` - wraps [`status`](https://nzbget-ng.github.io/api/status)
-- `listGroups()` - wraps [`listgroups`](https://nzbget-ng.github.io/api/listgroups)
-- `history(hidden?)` - wraps [`history`](https://nzbget-ng.github.io/api/history)
-- `getConfig()` - wraps [`config`](https://nzbget-ng.github.io/api/config)
-- `configTemplates(loadFromDisk?)` - wraps [`configtemplates`](https://nzbget-ng.github.io/api/configtemplates)
-- `listFiles(id)` - wraps [`listfiles`](https://nzbget-ng.github.io/api/listfiles)
-- `getCategories()` - derived from [`config`](https://nzbget-ng.github.io/api/config)
-- `getScripts()` - derived from [`configtemplates`](https://nzbget-ng.github.io/api/configtemplates)
+- `getVersion()` - wraps [`version`](https://nzbget.com/documentation/api/version/)
+- `status()` - wraps [`status`](https://nzbget.com/documentation/api/status/)
+- `listGroups()` - wraps [`listgroups`](https://nzbget.com/documentation/api/listgroups/)
+- `history(hidden?)` - wraps [`history`](https://nzbget.com/documentation/api/history/)
+- `getConfig()` - wraps [`config`](https://nzbget.com/documentation/api/config/)
+- `configTemplates(loadFromDisk?)` - wraps [`configtemplates`](https://nzbget.com/documentation/api/configtemplates/)
+- `listFiles(id)` - wraps [`listfiles`](https://nzbget.com/documentation/api/listfiles/)
+- `getCategories()` - derived from [`config`](https://nzbget.com/documentation/api/config/)
+- `getScripts()` - derived from [`configtemplates`](https://nzbget.com/documentation/api/configtemplates/)
 
 Queue and rate control:
 
-- `pauseDownload()` - wraps [`pausedownload`](https://nzbget-ng.github.io/api/pausedownload)
-- `resumeDownload()` - wraps [`resumedownload`](https://nzbget-ng.github.io/api/resumedownload)
-- `setRate(limitBytesPerSecond)` - wraps [`rate`](https://nzbget-ng.github.io/api/rate)
-- `append(name, contentOrUrl, options?)` - wraps [`append`](https://nzbget-ng.github.io/api/append)
-- `editQueue(command, parameter, ids)` - wraps [`editqueue`](https://nzbget-ng.github.io/api/editqueue)
+- `pauseDownload()` - wraps [`pausedownload`](https://nzbget.com/documentation/api/pausedownload/)
+- `resumeDownload()` - wraps [`resumedownload`](https://nzbget.com/documentation/api/resumedownload/)
+- `setRate(limitBytesPerSecond)` - wraps [`rate`](https://nzbget.com/documentation/api/rate/)
+- `append(name, contentOrUrl, options?)` - wraps [`append`](https://nzbget.com/documentation/api/append/)
+- `editQueue(command, parameter, ids)` - wraps [`editqueue`](https://nzbget.com/documentation/api/editqueue/)
+
+System:
+
+- `sysInfo()` - wraps [`sysinfo`](https://nzbget.com/documentation/api/sysinfo/)
+- `systemHealth()` - wraps [`systemhealth`](https://nzbget.com/documentation/api/systemhealth/)
+- `loadConfig()` / `saveConfig(items)` - wrap [`loadconfig`](https://nzbget.com/documentation/api/loadconfig/) and [`saveconfig`](https://nzbget.com/documentation/api/saveconfig/)
+- `clearLog()` - wraps `clearlog`
+- `resetServerVolume(serverId, counter?)` - wraps [`resetservervolume`](https://nzbget.com/documentation/api/resetservervolume/)
 
 ### State Export
 
